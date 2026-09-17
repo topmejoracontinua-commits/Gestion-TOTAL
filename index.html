@@ -340,6 +340,9 @@
     opacity: 0.45; transition: all 0.2s var(--ease);
   }
   .import-stage:hover .dot { border-color: var(--gray-mid); opacity: 0.8; }
+  .import-stage:disabled { cursor: default; }
+  .import-stage:disabled:hover .dot { border-color: inherit; }
+  .import-stage:disabled .dot { cursor: default; }
   .import-stage.done .dot { border-color: var(--red); opacity: 1; }
   .import-stage.current .dot { border-color: var(--red); opacity: 1; box-shadow: 0 0 0 5px rgba(228,55,42,0.14); }
   .import-stage .label { font-size: 0.66rem; color: var(--gray-mid); text-align: center; max-width: 76px; line-height: 1.2; }
@@ -525,6 +528,16 @@
             <table>
               <thead><tr><th></th><th>Nº orden</th><th>Proveedor</th><th>Emisión</th><th>Llegada est.</th><th>Estado</th><th>Acciones</th></tr></thead>
               <tbody id="tabla-compras"><tr><td colspan="7" class="loading-text">Cargando…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel-wide">
+          <div class="panel-wide-head"><h3>Pendientes de ingreso</h3><span class="count" id="count-pendientes-ingreso">0</span></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Nº orden</th><th>Proveedor</th><th>Producto</th><th>Pedido</th><th>Recibido</th><th>Pendiente</th><th>Llegada est.</th></tr></thead>
+              <tbody id="tabla-pendientes-ingreso"><tr><td colspan="7" class="loading-text">Cargando…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1582,6 +1595,26 @@
     tbody.querySelectorAll('[data-detalle]').forEach(btn => {
       btn.addEventListener('click', () => openRecibirModal(btn.dataset.detalle, btn.dataset.estado === 'pendiente' || btn.dataset.estado === 'parcial', btn.dataset.numero));
     });
+
+    const tbodyPendientes = document.getElementById('tabla-pendientes-ingreso');
+    tbodyPendientes.innerHTML = `<tr><td colspan="7" class="loading-text">Cargando…</td></tr>`;
+    const { data: pendientes, error: errPendientes } = await supabaseClient.from('vista_pendientes_ingreso').select('*');
+
+    if (errPendientes || !pendientes) {
+      tbodyPendientes.innerHTML = `<tr class="empty-row"><td colspan="7">No se pudo cargar.</td></tr>`;
+    } else {
+      document.getElementById('count-pendientes-ingreso').textContent = pendientes.length;
+      tbodyPendientes.innerHTML = pendientes.length ? pendientes.map(p => `
+        <tr>
+          <td>${p.numero_orden ?? '—'}</td>
+          <td>${p.proveedor}</td>
+          <td>${p.producto} <span style="color:var(--gray-mid); font-size:0.78rem;">(${p.sku})</span></td>
+          <td>${p.cantidad_pedida}</td>
+          <td>${p.cantidad_recibida}</td>
+          <td class="badge-red">${p.cantidad_pendiente}</td>
+          <td>${formatFecha(p.fecha_estimada_llegada)}</td>
+        </tr>`).join('') : `<tr class="empty-row"><td colspan="7">No hay pendientes de ingreso.</td></tr>`;
+    }
   }
 
   document.getElementById('oc-form').addEventListener('submit', async (e) => {
@@ -1673,15 +1706,31 @@
         const recibido = recibidoPorProducto[l.producto_id] || 0;
         const pendiente = Math.max(Number(l.cantidad_pedida) - recibido, 0);
         return `
-          <div class="line-item-row" data-linea="${l.id}" data-producto="${l.producto_id}" style="grid-template-columns: 1fr 90px 110px; margin-bottom: 0.7rem;">
+          <div class="line-item-row" data-linea="${l.id}" data-producto="${l.producto_id}" data-pendiente="${pendiente}" style="grid-template-columns: 1fr 90px 110px; margin-bottom: 0.7rem;">
             <div>
               <div style="font-weight:600; font-size:0.88rem;">${l.productos?.nombre ?? '—'}</div>
-              <div style="font-size:0.75rem; color:var(--gray-mid);">${l.productos?.sku ?? ''} · pedido ${l.cantidad_pedida} · recibido ${recibido}</div>
+              <div style="font-size:0.75rem; color:var(--gray-mid);">${l.productos?.sku ?? ''} · pedido ${l.cantidad_pedida} · recibido ${recibido} · pendiente ${pendiente}</div>
+              <div class="mr-linea-error" style="display:none; font-size:0.75rem; color:var(--red-dark); margin-top:0.2rem;"></div>
             </div>
-            <input type="number" class="mr-cantidad" min="0" step="0.01" placeholder="Recibir" value="${pendiente > 0 ? pendiente : ''}">
+            <input type="number" class="mr-cantidad" min="0" max="${pendiente}" step="0.01" placeholder="Recibir" value="${pendiente > 0 ? pendiente : ''}" ${pendiente <= 0 ? 'disabled' : ''}>
             <input type="number" class="mr-costo" min="0" step="0.01" value="${l.costo_unitario}">
           </div>`;
       }).join('');
+
+      cont.querySelectorAll('.mr-cantidad').forEach(input => {
+        input.addEventListener('input', () => {
+          const row = input.closest('.line-item-row');
+          const pendiente = Number(row.dataset.pendiente);
+          const errEl = row.querySelector('.mr-linea-error');
+          if (Number(input.value) > pendiente) {
+            errEl.textContent = `No podés recibir más de lo pendiente (${pendiente}).`;
+            errEl.style.display = 'block';
+            input.value = pendiente;
+          } else {
+            errEl.style.display = 'none';
+          }
+        });
+      });
     } else {
       cont.innerHTML = `
         <table>
@@ -1719,7 +1768,10 @@
       const lineasPayload = payload.map(l => ({ recepcion_id: recepcion.id, producto_id: l.producto_id, cantidad_recibida: l.cantidad_recibida, costo_unitario: l.costo_unitario }));
       const { error: errLineasRec } = await supabaseClient.from('recepcion_lineas').insert(lineasPayload);
 
-      if (errLineasRec) { showToast('La recepción se creó pero hubo un error con las líneas', 'error'); return; }
+      if (errLineasRec) {
+        showToast(errLineasRec.message?.includes('supera') ? errLineasRec.message : 'La recepción se creó pero hubo un error con las líneas', 'error');
+        return;
+      }
 
       closeModal('modal-recibir');
       showToast('Recepción registrada — stock actualizado');
@@ -1753,10 +1805,11 @@
   function renderImportTrack(importacion) {
     const idx = ETAPAS_IMPORTACION.findIndex(e => e.key === importacion.etapa);
     const pct = idx <= 0 ? 0 : (idx / (ETAPAS_IMPORTACION.length - 1)) * 100;
+    const bloqueada = importacion.etapa === 'entregado';
     const stages = ETAPAS_IMPORTACION.map((etapa, i) => {
       const cls = i < idx ? 'done' : i === idx ? 'current' : '';
       return `
-        <button type="button" class="import-stage ${cls}" data-importacion="${importacion.id}" data-etapa="${etapa.key}" title="${etapa.label}">
+        <button type="button" class="import-stage ${cls}" data-importacion="${importacion.id}" data-etapa="${etapa.key}" title="${bloqueada ? 'Entregado — etapa cerrada' : etapa.label}" ${bloqueada ? 'disabled' : ''}>
           <div class="dot">${etapa.icon}</div>
           <div class="label">${etapa.label}</div>
         </button>`;
@@ -1764,6 +1817,7 @@
 
     return `
       <div class="import-track-wrap">
+        ${bloqueada ? '<div style="text-align:right; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">🔒 Entregado — etapa cerrada</div>' : ''}
         <div class="import-track-line"><div class="import-track-line-fill" style="width:${pct}%;"></div></div>
         <div class="import-track-row">${stages}</div>
       </div>`;
@@ -1819,7 +1873,10 @@
       btn.addEventListener('click', async () => {
         const { error: errUpd } = await supabaseClient.from('importaciones')
           .update({ etapa: btn.dataset.etapa }).eq('id', btn.dataset.importacion);
-        if (errUpd) { showToast('No se pudo actualizar la etapa', 'error'); return; }
+        if (errUpd) {
+          showToast(errUpd.message?.includes('entregada') ? errUpd.message : 'No se pudo actualizar la etapa', 'error');
+          return;
+        }
         showToast('Etapa actualizada');
         loadImportacionesView();
       });
