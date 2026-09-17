@@ -229,9 +229,27 @@
 
   .line-items { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.9rem; }
   .line-item-row {
-    display: grid; grid-template-columns: 1fr 110px 130px 36px; gap: 0.6rem; align-items: start;
+    display: grid; grid-template-columns: 1fr 90px 120px 110px 36px; gap: 0.6rem; align-items: start;
   }
   @media (max-width: 700px) { .line-item-row { grid-template-columns: 1fr; } }
+
+  .line-items-header {
+    display: grid; grid-template-columns: 1fr 90px 120px 110px 36px; gap: 0.6rem;
+    font-size: 0.72rem; font-weight: 600; color: var(--gray-mid); margin-bottom: 0.4rem; padding: 0 0.1rem;
+  }
+  @media (max-width: 700px) { .line-items-header { display: none; } }
+
+  .line-subtotal {
+    padding: 0.6rem 0.7rem; font-size: 0.88rem; font-weight: 600; text-align: right;
+    color: var(--black); white-space: nowrap;
+  }
+
+  .line-items-total {
+    display: flex; justify-content: flex-end; align-items: baseline; gap: 0.5rem;
+    padding: 0.75rem 0.1rem 0.25rem; font-size: 0.95rem;
+  }
+  .line-items-total .label { color: var(--gray-mid); font-size: 0.85rem; }
+  .line-items-total .value { font-family: var(--font-display); font-size: 1.15rem; }
 
   .autocomplete-wrap { position: relative; }
   .autocomplete-wrap input[type="text"] {
@@ -326,11 +344,6 @@
   .import-stage.current .dot { border-color: var(--red); opacity: 1; box-shadow: 0 0 0 5px rgba(228,55,42,0.14); }
   .import-stage .label { font-size: 0.66rem; color: var(--gray-mid); text-align: center; max-width: 76px; line-height: 1.2; }
   .import-stage.current .label { color: var(--red-dark); font-weight: 700; }
-  .import-stage .ship {
-    position: absolute; top: -30px; font-size: 1.35rem;
-    animation: float-boat 2.4s ease-in-out infinite;
-  }
-  @keyframes float-boat { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-7px) rotate(4deg); } }
 
 </style>
 </head>
@@ -494,8 +507,12 @@
             </div>
           </div>
 
+          <div class="line-items-header">
+            <span>Producto</span><span>Cantidad</span><span>Costo unit.</span><span>Subtotal</span><span></span>
+          </div>
           <div class="line-items" id="oc-lineas"></div>
           <button type="button" class="btn-secondary" id="oc-add-line">+ Agregar línea</button>
+          <div class="line-items-total"><span class="label">Total de la orden</span><span class="value" id="oc-total">$ 0</span></div>
 
           <div class="form-actions">
             <button type="submit" class="btn-primary" id="oc-submit">Crear orden de compra</button>
@@ -506,8 +523,8 @@
           <div class="panel-wide-head"><h3>Órdenes de compra</h3></div>
           <div class="table-scroll">
             <table>
-              <thead><tr><th></th><th>Proveedor</th><th>Emisión</th><th>Llegada est.</th><th>Estado</th><th>Acciones</th></tr></thead>
-              <tbody id="tabla-compras"><tr><td colspan="6" class="loading-text">Cargando…</td></tr></tbody>
+              <thead><tr><th></th><th>Nº orden</th><th>Proveedor</th><th>Emisión</th><th>Llegada est.</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody id="tabla-compras"><tr><td colspan="7" class="loading-text">Cargando…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -539,8 +556,12 @@
             </div>
           </div>
 
+          <div class="line-items-header">
+            <span>Producto</span><span>Cantidad</span><span>Precio unit.</span><span>Subtotal</span><span></span>
+          </div>
           <div class="line-items" id="v-lineas"></div>
           <button type="button" class="btn-secondary" id="v-add-line">+ Agregar línea</button>
+          <div class="line-items-total"><span class="label">Total de la venta</span><span class="value" id="v-total">$ 0</span></div>
 
           <div class="form-actions">
             <button type="submit" class="btn-primary" id="v-submit">Registrar venta</button>
@@ -1405,18 +1426,19 @@
   // ==================================================
   // AUTOCOMPLETE DE PRODUCTOS (líneas de compra/venta)
   // ==================================================
-  function addLineRow(containerEl, { priceLabel, priceSource }) {
+  function addLineRow(containerEl, { priceLabel, priceSource, totalElId }) {
     const row = document.createElement('div');
     row.className = 'line-item-row';
     row.innerHTML = `
       <div class="autocomplete-wrap">
-        <input type="text" class="line-producto-input" placeholder="Buscar producto (SKU o nombre)">
+        <input type="text" class="line-producto-input" placeholder="Hacé clic para buscar un producto…">
         <input type="hidden" class="line-producto-id">
         <div class="autocomplete-list"></div>
         <div class="stock-warning" style="display:none;"></div>
       </div>
       <input type="number" class="line-cantidad" placeholder="Cantidad" min="0.01" step="0.01">
       <input type="number" class="line-precio" placeholder="${priceLabel}" min="0" step="0.01">
+      <div class="line-subtotal">$ 0</div>
       <button type="button" class="line-remove-btn" title="Quitar línea">×</button>
     `;
     containerEl.appendChild(row);
@@ -1429,15 +1451,29 @@
     const warning = row.querySelector('.stock-warning');
     let selectedStock = null;
     let priceTouched = false;
-    precioInput.addEventListener('input', () => { priceTouched = true; });
 
+    function recalc() {
+      const cantidad = Number(cantidadInput.value) || 0;
+      const precio = Number(precioInput.value) || 0;
+      row.querySelector('.line-subtotal').textContent = formatARS(cantidad * precio);
+      if (totalElId) {
+        const total = [...containerEl.querySelectorAll('.line-item-row')].reduce((acc, r) => {
+          return acc + (Number(r.querySelector('.line-cantidad').value) || 0) * (Number(r.querySelector('.line-precio').value) || 0);
+        }, 0);
+        const totalEl = document.getElementById(totalElId);
+        if (totalEl) totalEl.textContent = formatARS(total);
+      }
+    }
+
+    precioInput.addEventListener('input', () => { priceTouched = true; recalc(); });
+    cantidadInput.addEventListener('input', recalc);
+
+    // Muestra productos apenas se hace foco (con o sin texto escrito), así el buscador
+    // no se ve "inerte" — antes solo reaccionaba si ya se había tipeado algo.
     const search = debounce(async (term) => {
-      hiddenId.value = '';
-      selectedStock = null;
-      if (!term) { list.classList.remove('open'); return; }
-      const { data, error } = await supabaseClient.from('productos')
-        .select('id, sku, nombre, costo_ultimo, precio_venta, stock_actual')
-        .or(`nombre.ilike.%${term}%,sku.ilike.%${term}%`).limit(8);
+      let query = supabaseClient.from('productos').select('id, sku, nombre, costo_ultimo, precio_venta, stock_actual').limit(8);
+      query = term ? query.or(`nombre.ilike.%${term}%,sku.ilike.%${term}%`) : query.order('nombre');
+      const { data, error } = await query;
       if (error || !data || !data.length) {
         list.innerHTML = `<div class="autocomplete-empty">Sin resultados</div>`;
         list.classList.add('open');
@@ -1448,10 +1484,10 @@
           <div>${p.nombre}</div><div class="ac-sku">${p.sku} · stock: ${p.stock_actual}</div>
         </div>`).join('');
       list.classList.add('open');
-    }, 250);
+    }, 200);
 
-    input.addEventListener('input', () => search(input.value.trim()));
-    input.addEventListener('focus', () => { if (list.innerHTML) list.classList.add('open'); });
+    input.addEventListener('input', () => { hiddenId.value = ''; selectedStock = null; search(input.value.trim()); });
+    input.addEventListener('focus', () => { if (!hiddenId.value) search(input.value.trim()); });
     document.addEventListener('click', (e) => { if (!row.contains(e.target)) list.classList.remove('open'); });
 
     list.addEventListener('click', (e) => {
@@ -1463,6 +1499,7 @@
       if (!priceTouched) precioInput.value = priceSource === 'costo' ? item.dataset.costo : item.dataset.precio;
       list.classList.remove('open');
       checkStockWarning();
+      recalc();
     });
 
     function checkStockWarning() {
@@ -1475,7 +1512,17 @@
     }
     cantidadInput.addEventListener('input', checkStockWarning);
 
-    row.querySelector('.line-remove-btn').addEventListener('click', () => row.remove());
+    row.querySelector('.line-remove-btn').addEventListener('click', () => {
+      row.remove();
+      if (totalElId) {
+        const totalEl = document.getElementById(totalElId);
+        if (totalEl) {
+          const total = [...containerEl.querySelectorAll('.line-item-row')].reduce((acc, r) =>
+            acc + (Number(r.querySelector('.line-cantidad').value) || 0) * (Number(r.querySelector('.line-precio').value) || 0), 0);
+          totalEl.textContent = formatARS(total);
+        }
+      }
+    });
 
     return row;
   }
@@ -1493,7 +1540,7 @@
   // COMPRAS
   // ==================================================
   const ocLineasEl = document.getElementById('oc-lineas');
-  document.getElementById('oc-add-line').addEventListener('click', () => addLineRow(ocLineasEl, { priceLabel: 'Costo unit.', priceSource: 'costo' }));
+  document.getElementById('oc-add-line').addEventListener('click', () => addLineRow(ocLineasEl, { priceLabel: 'Costo unit.', priceSource: 'costo', totalElId: 'oc-total' }));
 
   document.getElementById('oc-es-importacion').addEventListener('change', (e) => {
     document.getElementById('oc-importacion-campos').style.display = e.target.checked ? 'block' : 'none';
@@ -1502,15 +1549,15 @@
   async function loadComprasView() {
     const proveedores = await ensureProveedoresCache();
     fillSelect(document.getElementById('oc-proveedor'), proveedores, null);
-    if (!ocLineasEl.children.length) addLineRow(ocLineasEl, { priceLabel: 'Costo unit.', priceSource: 'costo' });
+    if (!ocLineasEl.children.length) addLineRow(ocLineasEl, { priceLabel: 'Costo unit.', priceSource: 'costo', totalElId: 'oc-total' });
 
     const tbody = document.getElementById('tabla-compras');
-    tbody.innerHTML = `<tr><td colspan="6" class="loading-text">Cargando…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="loading-text">Cargando…</td></tr>`;
     const { data, error } = await supabaseClient.from('ordenes_compra')
-      .select('id, fecha_emision, fecha_estimada_llegada, estado, proveedores(nombre)')
+      .select('id, numero_orden, fecha_emision, fecha_estimada_llegada, estado, proveedores(nombre)')
       .order('fecha_emision', { ascending: false }).limit(50);
 
-    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No se pudo cargar.</td></tr>`; return; }
+    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="7">No se pudo cargar.</td></tr>`; return; }
 
     const { data: vinculadas } = await supabaseClient.from('importaciones').select('orden_compra_id').not('orden_compra_id', 'is', null);
     const ordenesConImportacion = new Set((vinculadas ?? []).map(v => v.orden_compra_id));
@@ -1518,21 +1565,22 @@
     tbody.innerHTML = data.length ? data.map(o => `
       <tr>
         <td>${ordenesConImportacion.has(o.id) ? '🚢' : ''}</td>
+        <td style="font-weight:600;">${o.numero_orden ?? '—'}</td>
         <td>${o.proveedores?.nombre ?? '—'}</td>
         <td>${formatFecha(o.fecha_emision)}</td>
         <td>${formatFecha(o.fecha_estimada_llegada)}</td>
         <td>${estadoLabel[o.estado] ?? o.estado}</td>
         <td style="white-space:nowrap; display:flex; gap:0.4rem;">
-          <button class="action-btn" data-detalle="${o.id}" data-estado="${o.estado}">Ver productos</button>
-          ${o.estado === 'pendiente' || o.estado === 'parcial' ? `<button class="action-btn" data-recibir="${o.id}">Recibir</button>` : ''}
+          <button class="action-btn" data-detalle="${o.id}" data-estado="${o.estado}" data-numero="${o.numero_orden ?? ''}">Ver productos</button>
+          ${o.estado === 'pendiente' || o.estado === 'parcial' ? `<button class="action-btn" data-recibir="${o.id}" data-numero="${o.numero_orden ?? ''}">Recibir</button>` : ''}
         </td>
-      </tr>`).join('') : `<tr class="empty-row"><td colspan="6">Todavía no cargaste órdenes de compra.</td></tr>`;
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Todavía no cargaste órdenes de compra.</td></tr>`;
 
     tbody.querySelectorAll('[data-recibir]').forEach(btn => {
-      btn.addEventListener('click', () => openRecibirModal(btn.dataset.recibir, true));
+      btn.addEventListener('click', () => openRecibirModal(btn.dataset.recibir, true, btn.dataset.numero));
     });
     tbody.querySelectorAll('[data-detalle]').forEach(btn => {
-      btn.addEventListener('click', () => openRecibirModal(btn.dataset.detalle, btn.dataset.estado === 'pendiente' || btn.dataset.estado === 'parcial'));
+      btn.addEventListener('click', () => openRecibirModal(btn.dataset.detalle, btn.dataset.estado === 'pendiente' || btn.dataset.estado === 'parcial', btn.dataset.numero));
     });
   }
 
@@ -1549,8 +1597,12 @@
     const submitBtn = document.getElementById('oc-submit');
     submitBtn.disabled = true;
 
+    const esImportacion = document.getElementById('oc-es-importacion').checked;
+    const { data: numeroOrden, error: errNumero } = await supabaseClient.rpc('fn_next_numero_orden', { es_importacion: esImportacion });
+    if (errNumero) { showToast('No se pudo generar el número de orden', 'error'); submitBtn.disabled = false; return; }
+
     const { data: orden, error: errOrden } = await supabaseClient.from('ordenes_compra')
-      .insert([{ proveedor_id, fecha_emision, fecha_estimada_llegada, estado: 'pendiente' }])
+      .insert([{ proveedor_id, fecha_emision, fecha_estimada_llegada, estado: 'pendiente', numero_orden: numeroOrden }])
       .select().single();
 
     if (errOrden || !orden) { showToast('No se pudo crear la orden', 'error'); submitBtn.disabled = false; return; }
@@ -1560,7 +1612,7 @@
 
     if (errLineas) { showToast('La orden se creó pero hubo un error con las líneas', 'error'); submitBtn.disabled = false; return; }
 
-    if (document.getElementById('oc-es-importacion').checked) {
+    if (esImportacion) {
       const proveedorNombre = document.getElementById('oc-proveedor').selectedOptions[0]?.textContent ?? '';
       await supabaseClient.from('importaciones').insert([{
         proveedor_id,
@@ -1580,7 +1632,8 @@
 
     showToast('Orden de compra creada');
     ocLineasEl.innerHTML = '';
-    addLineRow(ocLineasEl, { priceLabel: 'Costo unit.', priceSource: 'costo' });
+    document.getElementById('oc-total').textContent = '$ 0';
+    addLineRow(ocLineasEl, { priceLabel: 'Costo unit.', priceSource: 'costo', totalElId: 'oc-total' });
     document.getElementById('oc-fecha-llegada').value = '';
     document.getElementById('oc-es-importacion').checked = false;
     document.getElementById('oc-importacion-campos').style.display = 'none';
@@ -1592,9 +1645,9 @@
     loadDashboard();
   });
 
-  async function openRecibirModal(ordenId, editable = true) {
+  async function openRecibirModal(ordenId, editable = true, numero = '') {
     document.getElementById('mr-error').style.display = 'none';
-    document.getElementById('mr-title').textContent = editable ? 'Registrar recepción' : 'Detalle de la orden';
+    document.getElementById('mr-title').textContent = (editable ? 'Registrar recepción' : 'Detalle de la orden') + (numero ? ` — ${numero}` : '');
     document.getElementById('mr-submit').style.display = editable ? 'inline-block' : 'none';
     const cont = document.getElementById('mr-lineas');
     cont.innerHTML = `<div class="loading-text">Cargando…</div>`;
@@ -1704,7 +1757,6 @@
       const cls = i < idx ? 'done' : i === idx ? 'current' : '';
       return `
         <button type="button" class="import-stage ${cls}" data-importacion="${importacion.id}" data-etapa="${etapa.key}" title="${etapa.label}">
-          ${i === idx ? '<span class="ship">🚢</span>' : ''}
           <div class="dot">${etapa.icon}</div>
           <div class="label">${etapa.label}</div>
         </button>`;
@@ -1725,7 +1777,7 @@
     cont.innerHTML = `<div class="loading-text">Cargando…</div>`;
 
     const { data, error } = await supabaseClient.from('importaciones')
-      .select('id, descripcion, origen, destino, naviera, contenedor_tracking, fecha_pedido, fecha_estimada_llegada, etapa, etapa_actualizada_en, proveedor_id, orden_compra_id, proveedores(nombre)')
+      .select('id, descripcion, origen, destino, naviera, contenedor_tracking, fecha_pedido, fecha_estimada_llegada, etapa, etapa_actualizada_en, proveedor_id, orden_compra_id, proveedores(nombre), ordenes_compra(numero_orden)')
       .order('etapa_actualizada_en', { ascending: false });
 
     if (error || !data) { cont.innerHTML = `<div class="placeholder-view">No se pudieron cargar las importaciones.</div>`; return; }
@@ -1746,7 +1798,7 @@
             </div>
           </div>
           <div class="import-card-actions">
-            ${imp.orden_compra_id ? `<button class="action-btn" data-ver-compra="${imp.orden_compra_id}">🚢 Ver compra vinculada</button>` : ''}
+            ${imp.orden_compra_id ? `<button class="action-btn" data-ver-compra="${imp.orden_compra_id}">Ver ${imp.ordenes_compra?.numero_orden ?? 'compra vinculada'}</button>` : ''}
             <button class="action-btn" data-editar-importacion="${imp.id}">Editar</button>
           </div>
         </div>
@@ -1848,12 +1900,12 @@
   // VENTAS
   // ==================================================
   const vLineasEl = document.getElementById('v-lineas');
-  document.getElementById('v-add-line').addEventListener('click', () => addLineRow(vLineasEl, { priceLabel: 'Precio unit.', priceSource: 'precio' }));
+  document.getElementById('v-add-line').addEventListener('click', () => addLineRow(vLineasEl, { priceLabel: 'Precio unit.', priceSource: 'precio', totalElId: 'v-total' }));
 
   async function loadVentasView() {
     const clientes = await ensureClientesCache();
     fillSelect(document.getElementById('v-cliente'), clientes, '— Sin cliente —');
-    if (!vLineasEl.children.length) addLineRow(vLineasEl, { priceLabel: 'Precio unit.', priceSource: 'precio' });
+    if (!vLineasEl.children.length) addLineRow(vLineasEl, { priceLabel: 'Precio unit.', priceSource: 'precio', totalElId: 'v-total' });
 
     const tbody = document.getElementById('tabla-ventas');
     tbody.innerHTML = `<tr><td colspan="3" class="loading-text">Cargando…</td></tr>`;
@@ -1894,7 +1946,8 @@
 
     showToast('Venta registrada — stock actualizado');
     vLineasEl.innerHTML = '';
-    addLineRow(vLineasEl, { priceLabel: 'Precio unit.', priceSource: 'precio' });
+    document.getElementById('v-total').textContent = '$ 0';
+    addLineRow(vLineasEl, { priceLabel: 'Precio unit.', priceSource: 'precio', totalElId: 'v-total' });
     loadVentasView();
     loadDashboard();
   });
