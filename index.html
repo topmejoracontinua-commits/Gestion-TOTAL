@@ -290,6 +290,48 @@
   @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
   .placeholder-view { background: var(--white); border: 1px solid var(--gray-border); border-radius: 12px; padding: 3rem 2rem; text-align: center; color: var(--gray-mid); }
+
+  /* ---- Importaciones ---- */
+  .import-card { background: var(--white); border: 1px solid var(--gray-border); border-radius: 12px; padding: 1.5rem 1.5rem 1.25rem; margin-bottom: 1.25rem; }
+  .import-card-head { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.25rem; }
+  .import-card-head h3 { font-size: 1rem; margin-bottom: 0.2rem; }
+  .import-card-head .meta { font-size: 0.8rem; color: var(--gray-mid); }
+  .import-card-head .meta strong { color: var(--black); font-weight: 600; }
+  .import-card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+
+  .import-track-wrap {
+    position: relative; margin-top: 2.6rem; padding: 0.5rem 0 0.25rem;
+    background-image: radial-gradient(circle, rgba(59,130,246,0.14) 1.2px, transparent 1.6px);
+    background-size: 14px 14px;
+    border-radius: 10px;
+  }
+  .import-track-line {
+    position: absolute; left: 6%; right: 6%; top: 20px; height: 4px;
+    background: var(--gray-border); border-radius: 999px; overflow: hidden;
+  }
+  .import-track-line-fill { height: 100%; background: linear-gradient(90deg, var(--red), var(--red-dark)); transition: width 0.4s var(--ease); }
+
+  .import-track-row { position: relative; display: flex; justify-content: space-between; padding: 0 4%; }
+  .import-stage {
+    display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+    background: none; border: none; cursor: pointer; flex: 1; position: relative; padding-top: 4px;
+  }
+  .import-stage .dot {
+    width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; background: var(--white); border: 3px solid var(--gray-border);
+    opacity: 0.45; transition: all 0.2s var(--ease);
+  }
+  .import-stage:hover .dot { border-color: var(--gray-mid); opacity: 0.8; }
+  .import-stage.done .dot { border-color: var(--red); opacity: 1; }
+  .import-stage.current .dot { border-color: var(--red); opacity: 1; box-shadow: 0 0 0 5px rgba(228,55,42,0.14); }
+  .import-stage .label { font-size: 0.66rem; color: var(--gray-mid); text-align: center; max-width: 76px; line-height: 1.2; }
+  .import-stage.current .label { color: var(--red-dark); font-weight: 700; }
+  .import-stage .ship {
+    position: absolute; top: -30px; font-size: 1.35rem;
+    animation: float-boat 2.4s ease-in-out infinite;
+  }
+  @keyframes float-boat { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-7px) rotate(4deg); } }
+
 </style>
 </head>
 <body>
@@ -331,6 +373,7 @@
       <div class="nav-item active" data-view="dashboard"><span class="nav-dot"></span>Dashboard</div>
       <div class="nav-item" data-view="productos"><span class="nav-dot"></span>Productos</div>
       <div class="nav-item" data-view="compras"><span class="nav-dot"></span>Compras</div>
+      <div class="nav-item" data-view="importaciones"><span class="nav-dot"></span>Importaciones</div>
       <div class="nav-item" data-view="ventas"><span class="nav-dot"></span>Ventas</div>
       <div class="nav-item" data-view="proveedores"><span class="nav-dot"></span>Proveedores</div>
       <div class="nav-item" data-view="clientes"><span class="nav-dot"></span>Clientes</div>
@@ -433,6 +476,15 @@
             </table>
           </div>
         </div>
+      </div>
+
+      <!-- ===================== IMPORTACIONES ===================== -->
+      <div class="view" id="view-importaciones">
+        <div class="main-header">
+          <div><h1>Importaciones</h1><p>Seguimiento de contenedores, de origen a destino</p></div>
+          <button class="btn-primary" id="btn-nueva-importacion">+ Nueva importación</button>
+        </div>
+        <div id="lista-importaciones"><div class="loading-text">Cargando…</div></div>
       </div>
 
       <!-- ===================== VENTAS ===================== -->
@@ -574,6 +626,35 @@
       <div class="field"><label>Contacto</label><input type="text" id="mc-contacto"></div>
       <div class="modal-close-row">
         <button type="button" class="btn-secondary" data-close-modal="modal-cliente">Cancelar</button>
+        <button type="submit" class="btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-importacion">
+  <div class="modal">
+    <h3 id="mimp-title">Nueva importación</h3>
+    <div class="form-error" id="mimp-error"></div>
+    <form id="mimp-form">
+      <input type="hidden" id="mimp-id">
+      <div class="field"><label>Proveedor</label><select id="mimp-proveedor" required></select></div>
+      <div class="field"><label>Descripción</label><input type="text" id="mimp-descripcion" placeholder="Ej: Contenedor Hankook agosto" required></div>
+      <div class="form-row">
+        <div class="field"><label>Origen</label><input type="text" id="mimp-origen" placeholder="Ej: Qingdao, China"></div>
+        <div class="field"><label>Destino</label><input type="text" id="mimp-destino" placeholder="Ej: Depósito Posadas"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Naviera</label><input type="text" id="mimp-naviera"></div>
+        <div class="field"><label>Nº contenedor / tracking</label><input type="text" id="mimp-tracking"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Fecha de pedido</label><input type="date" id="mimp-fecha-pedido" required></div>
+        <div class="field"><label>Fecha estimada de llegada</label><input type="date" id="mimp-fecha-llegada"></div>
+      </div>
+      <div class="modal-close-row">
+        <button type="button" class="btn-secondary" id="mimp-delete-btn" style="display:none; margin-right:auto; border-color:var(--red);">Eliminar</button>
+        <button type="button" class="btn-secondary" data-close-modal="modal-importacion">Cancelar</button>
         <button type="submit" class="btn-primary">Guardar</button>
       </div>
     </form>
@@ -737,6 +818,7 @@
     proveedores: loadProveedoresView,
     clientes: loadClientesView,
     compras: loadComprasView,
+    importaciones: loadImportacionesView,
     ventas: loadVentasView,
   };
 
@@ -1422,6 +1504,168 @@
       loadDashboard();
     };
   }
+
+  // ==================================================
+  // IMPORTACIONES
+  // ==================================================
+  const ETAPAS_IMPORTACION = [
+    { key: 'pedido_confirmado', label: 'Pedido confirmado', icon: '📝' },
+    { key: 'en_produccion', label: 'En producción', icon: '🏭' },
+    { key: 'en_el_agua', label: 'En el agua', icon: '🌊' },
+    { key: 'en_puerto_aduana', label: 'Puerto / Aduana', icon: '🛃' },
+    { key: 'transito_nacional', label: 'Tránsito nacional', icon: '🚛' },
+    { key: 'por_despachar', label: 'Por despachar', icon: '📦' },
+    { key: 'entregado', label: 'Entregado', icon: '✅' },
+  ];
+
+  let importacionesById = {};
+
+  function diasDesde(iso) {
+    const dias = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+    if (dias <= 0) return 'hoy';
+    if (dias === 1) return 'hace 1 día';
+    return `hace ${dias} días`;
+  }
+
+  function renderImportTrack(importacion) {
+    const idx = ETAPAS_IMPORTACION.findIndex(e => e.key === importacion.etapa);
+    const pct = idx <= 0 ? 0 : (idx / (ETAPAS_IMPORTACION.length - 1)) * 100;
+    const stages = ETAPAS_IMPORTACION.map((etapa, i) => {
+      const cls = i < idx ? 'done' : i === idx ? 'current' : '';
+      return `
+        <button type="button" class="import-stage ${cls}" data-importacion="${importacion.id}" data-etapa="${etapa.key}" title="${etapa.label}">
+          ${i === idx ? '<span class="ship">🚢</span>' : ''}
+          <div class="dot">${etapa.icon}</div>
+          <div class="label">${etapa.label}</div>
+        </button>`;
+    }).join('');
+
+    return `
+      <div class="import-track-wrap">
+        <div class="import-track-line"><div class="import-track-line-fill" style="width:${pct}%;"></div></div>
+        <div class="import-track-row">${stages}</div>
+      </div>`;
+  }
+
+  async function loadImportacionesView() {
+    const proveedores = await ensureProveedoresCache();
+    fillSelect(document.getElementById('mimp-proveedor'), proveedores, null);
+
+    const cont = document.getElementById('lista-importaciones');
+    cont.innerHTML = `<div class="loading-text">Cargando…</div>`;
+
+    const { data, error } = await supabaseClient.from('importaciones')
+      .select('id, descripcion, origen, destino, naviera, contenedor_tracking, fecha_pedido, fecha_estimada_llegada, etapa, etapa_actualizada_en, proveedor_id, proveedores(nombre)')
+      .order('etapa_actualizada_en', { ascending: false });
+
+    if (error || !data) { cont.innerHTML = `<div class="placeholder-view">No se pudieron cargar las importaciones.</div>`; return; }
+
+    importacionesById = {};
+    data.forEach(imp => importacionesById[imp.id] = imp);
+
+    cont.innerHTML = data.length ? data.map(imp => `
+      <div class="import-card">
+        <div class="import-card-head">
+          <div>
+            <h3>${imp.descripcion}</h3>
+            <div class="meta">
+              <strong>${imp.proveedores?.nombre ?? '—'}</strong>
+              ${imp.origen ? ` · ${imp.origen}` : ''}${imp.destino ? ` → ${imp.destino}` : ''}
+              ${imp.fecha_estimada_llegada ? ` · llegada estimada ${formatFecha(imp.fecha_estimada_llegada)}` : ''}
+              · en esta etapa ${diasDesde(imp.etapa_actualizada_en)}
+            </div>
+          </div>
+          <div class="import-card-actions">
+            <button class="action-btn" data-editar-importacion="${imp.id}">Editar</button>
+          </div>
+        </div>
+        ${renderImportTrack(imp)}
+      </div>`).join('') : `<div class="placeholder-view"><h2>Sin importaciones cargadas</h2>Creá la primera con "+ Nueva importación".</div>`;
+
+    cont.querySelectorAll('[data-editar-importacion]').forEach(btn => {
+      btn.addEventListener('click', () => openImportacionModal(importacionesById[btn.dataset.editarImportacion]));
+    });
+
+    cont.querySelectorAll('.import-stage').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const { error: errUpd } = await supabaseClient.from('importaciones')
+          .update({ etapa: btn.dataset.etapa }).eq('id', btn.dataset.importacion);
+        if (errUpd) { showToast('No se pudo actualizar la etapa', 'error'); return; }
+        showToast('Etapa actualizada');
+        loadImportacionesView();
+      });
+    });
+  }
+
+  function openImportacionModal(importacion) {
+    document.getElementById('mimp-form').reset();
+    document.getElementById('mimp-error').style.display = 'none';
+
+    if (importacion) {
+      document.getElementById('mimp-title').textContent = 'Editar importación';
+      document.getElementById('mimp-id').value = importacion.id;
+      document.getElementById('mimp-proveedor').value = importacion.proveedor_id ?? '';
+      document.getElementById('mimp-descripcion').value = importacion.descripcion ?? '';
+      document.getElementById('mimp-origen').value = importacion.origen ?? '';
+      document.getElementById('mimp-destino').value = importacion.destino ?? '';
+      document.getElementById('mimp-naviera').value = importacion.naviera ?? '';
+      document.getElementById('mimp-tracking').value = importacion.contenedor_tracking ?? '';
+      document.getElementById('mimp-fecha-pedido').value = importacion.fecha_pedido ?? todayStr();
+      document.getElementById('mimp-fecha-llegada').value = importacion.fecha_estimada_llegada ?? '';
+      document.getElementById('mimp-delete-btn').style.display = 'inline-block';
+    } else {
+      document.getElementById('mimp-title').textContent = 'Nueva importación';
+      document.getElementById('mimp-id').value = '';
+      document.getElementById('mimp-fecha-pedido').value = todayStr();
+      document.getElementById('mimp-delete-btn').style.display = 'none';
+    }
+    openModal('modal-importacion');
+  }
+
+  document.getElementById('btn-nueva-importacion').addEventListener('click', () => openImportacionModal(null));
+
+  document.getElementById('mimp-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('mimp-id').value;
+    const payload = {
+      proveedor_id: document.getElementById('mimp-proveedor').value,
+      descripcion: document.getElementById('mimp-descripcion').value.trim(),
+      origen: document.getElementById('mimp-origen').value.trim() || null,
+      destino: document.getElementById('mimp-destino').value.trim() || null,
+      naviera: document.getElementById('mimp-naviera').value.trim() || null,
+      contenedor_tracking: document.getElementById('mimp-tracking').value.trim() || null,
+      fecha_pedido: document.getElementById('mimp-fecha-pedido').value,
+      fecha_estimada_llegada: document.getElementById('mimp-fecha-llegada').value || null,
+    };
+
+    const { error } = id
+      ? await supabaseClient.from('importaciones').update(payload).eq('id', id)
+      : await supabaseClient.from('importaciones').insert([{ ...payload, etapa: 'pedido_confirmado' }]);
+
+    const errEl = document.getElementById('mimp-error');
+    if (error) { errEl.textContent = 'No se pudo guardar la importación.'; errEl.style.display = 'block'; return; }
+
+    closeModal('modal-importacion');
+    showToast(id ? 'Importación actualizada' : 'Importación creada');
+    loadImportacionesView();
+  });
+
+  document.getElementById('mimp-delete-btn').addEventListener('click', async () => {
+    const id = document.getElementById('mimp-id').value;
+    if (!id) return;
+    if (!confirm('¿Eliminar esta importación? Esta acción no se puede deshacer.')) return;
+
+    const { error } = await supabaseClient.from('importaciones').delete().eq('id', id);
+    if (error) {
+      const errEl = document.getElementById('mimp-error');
+      errEl.textContent = 'No se pudo eliminar la importación.';
+      errEl.style.display = 'block';
+      return;
+    }
+    closeModal('modal-importacion');
+    showToast('Importación eliminada');
+    loadImportacionesView();
+  });
 
   // ==================================================
   // VENTAS
