@@ -459,6 +459,24 @@
             <input type="date" id="oc-fecha-llegada">
           </div>
 
+          <div class="field" style="margin-bottom: 1.1rem;">
+            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+              <input type="checkbox" id="oc-es-importacion" style="width:auto;">
+              🚢 Es una importación (agregar a seguimiento de Importaciones)
+            </label>
+          </div>
+
+          <div id="oc-importacion-campos" style="display:none; margin-bottom: 1.1rem;">
+            <div class="form-row">
+              <div class="field"><label>Origen</label><input type="text" id="oc-imp-origen" placeholder="Ej: Qingdao, China"></div>
+              <div class="field"><label>Destino</label><input type="text" id="oc-imp-destino" placeholder="Ej: Depósito Posadas"></div>
+            </div>
+            <div class="form-row">
+              <div class="field"><label>Naviera</label><input type="text" id="oc-imp-naviera"></div>
+              <div class="field"><label>Nº contenedor / tracking</label><input type="text" id="oc-imp-tracking"></div>
+            </div>
+          </div>
+
           <div class="line-items" id="oc-lineas"></div>
           <button type="button" class="btn-secondary" id="oc-add-line">+ Agregar línea</button>
 
@@ -471,8 +489,8 @@
           <div class="panel-wide-head"><h3>Órdenes de compra</h3></div>
           <div class="table-scroll">
             <table>
-              <thead><tr><th>Proveedor</th><th>Emisión</th><th>Llegada est.</th><th>Estado</th><th>Acciones</th></tr></thead>
-              <tbody id="tabla-compras"><tr><td colspan="5" class="loading-text">Cargando…</td></tr></tbody>
+              <thead><tr><th></th><th>Proveedor</th><th>Emisión</th><th>Llegada est.</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody id="tabla-compras"><tr><td colspan="6" class="loading-text">Cargando…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1177,7 +1195,17 @@
       };
     }).filter(Boolean);
 
-    if (!payload.length) {
+    // Deduplicar por SKU (Postgres rechaza un upsert que toque la misma fila dos veces).
+    // Si el archivo trae el mismo SKU repetido, se conserva la última aparición.
+    const dedupMap = new Map();
+    let duplicados = 0;
+    payload.forEach(p => {
+      if (dedupMap.has(p.sku)) duplicados++;
+      dedupMap.set(p.sku, p);
+    });
+    const dedupedPayload = [...dedupMap.values()];
+
+    if (!dedupedPayload.length) {
       errEl.textContent = 'No se encontraron filas válidas con SKU y Nombre.';
       errEl.style.display = 'block';
       return;
@@ -1191,15 +1219,16 @@
     let imported = 0;
     let failed = 0;
 
-    for (let i = 0; i < payload.length; i += chunkSize) {
-      const chunk = payload.slice(i, i + chunkSize);
-      document.getElementById('mi-progress-text').textContent = `Importando ${Math.min(i + chunkSize, payload.length)} / ${payload.length}…`;
+    for (let i = 0; i < dedupedPayload.length; i += chunkSize) {
+      const chunk = dedupedPayload.slice(i, i + chunkSize);
+      document.getElementById('mi-progress-text').textContent = `Importando ${Math.min(i + chunkSize, dedupedPayload.length)} / ${dedupedPayload.length}…`;
       const { error } = await supabaseClient.from('productos').upsert(chunk, { onConflict: 'sku' });
       if (error) failed += chunk.length; else imported += chunk.length;
     }
 
     document.getElementById('mi-progress-text').textContent =
-      failed ? `Listo con errores: ${imported} importados, ${failed} fallaron.` : `Importación completa: ${imported} productos.`;
+      (failed ? `Listo con errores: ${imported} importados, ${failed} fallaron. ` : `Importación completa: ${imported} productos. `) +
+      (duplicados ? `(${duplicados} filas con SKU repetido, se usó la última de cada una)` : '');
 
     showToast(failed ? 'Importación terminada con errores' : 'Importación completa', failed ? 'error' : 'success');
     loadProductosView();
@@ -1382,27 +1411,35 @@
   const ocLineasEl = document.getElementById('oc-lineas');
   document.getElementById('oc-add-line').addEventListener('click', () => addLineRow(ocLineasEl, { priceLabel: 'Costo unit.', priceSource: 'costo' }));
 
+  document.getElementById('oc-es-importacion').addEventListener('change', (e) => {
+    document.getElementById('oc-importacion-campos').style.display = e.target.checked ? 'block' : 'none';
+  });
+
   async function loadComprasView() {
     const proveedores = await ensureProveedoresCache();
     fillSelect(document.getElementById('oc-proveedor'), proveedores, null);
     if (!ocLineasEl.children.length) addLineRow(ocLineasEl, { priceLabel: 'Costo unit.', priceSource: 'costo' });
 
     const tbody = document.getElementById('tabla-compras');
-    tbody.innerHTML = `<tr><td colspan="5" class="loading-text">Cargando…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="loading-text">Cargando…</td></tr>`;
     const { data, error } = await supabaseClient.from('ordenes_compra')
       .select('id, fecha_emision, fecha_estimada_llegada, estado, proveedores(nombre)')
       .order('fecha_emision', { ascending: false }).limit(50);
 
-    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="5">No se pudo cargar.</td></tr>`; return; }
+    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No se pudo cargar.</td></tr>`; return; }
+
+    const { data: vinculadas } = await supabaseClient.from('importaciones').select('orden_compra_id').not('orden_compra_id', 'is', null);
+    const ordenesConImportacion = new Set((vinculadas ?? []).map(v => v.orden_compra_id));
 
     tbody.innerHTML = data.length ? data.map(o => `
       <tr>
+        <td>${ordenesConImportacion.has(o.id) ? '🚢' : ''}</td>
         <td>${o.proveedores?.nombre ?? '—'}</td>
         <td>${formatFecha(o.fecha_emision)}</td>
         <td>${formatFecha(o.fecha_estimada_llegada)}</td>
         <td>${estadoLabel[o.estado] ?? o.estado}</td>
         <td>${o.estado === 'recibida' || o.estado === 'cancelada' ? '—' : `<button class="action-btn" data-recibir="${o.id}">Recibir</button>`}</td>
-      </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Todavía no cargaste órdenes de compra.</td></tr>`;
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="6">Todavía no cargaste órdenes de compra.</td></tr>`;
 
     tbody.querySelectorAll('[data-recibir]').forEach(btn => {
       btn.addEventListener('click', () => openRecibirModal(btn.dataset.recibir));
@@ -1431,14 +1468,36 @@
     const lineasPayload = lineas.map(l => ({ orden_compra_id: orden.id, producto_id: l.producto_id, cantidad_pedida: l.cantidad, costo_unitario: l.precio }));
     const { error: errLineas } = await supabaseClient.from('orden_compra_lineas').insert(lineasPayload);
 
-    submitBtn.disabled = false;
+    if (errLineas) { showToast('La orden se creó pero hubo un error con las líneas', 'error'); submitBtn.disabled = false; return; }
 
-    if (errLineas) { showToast('La orden se creó pero hubo un error con las líneas', 'error'); return; }
+    if (document.getElementById('oc-es-importacion').checked) {
+      const proveedorNombre = document.getElementById('oc-proveedor').selectedOptions[0]?.textContent ?? '';
+      await supabaseClient.from('importaciones').insert([{
+        proveedor_id,
+        orden_compra_id: orden.id,
+        descripcion: `Compra a ${proveedorNombre} del ${formatFecha(fecha_emision)}`,
+        origen: document.getElementById('oc-imp-origen').value.trim() || null,
+        destino: document.getElementById('oc-imp-destino').value.trim() || null,
+        naviera: document.getElementById('oc-imp-naviera').value.trim() || null,
+        contenedor_tracking: document.getElementById('oc-imp-tracking').value.trim() || null,
+        fecha_pedido: fecha_emision,
+        fecha_estimada_llegada,
+        etapa: 'pedido_confirmado',
+      }]);
+    }
+
+    submitBtn.disabled = false;
 
     showToast('Orden de compra creada');
     ocLineasEl.innerHTML = '';
     addLineRow(ocLineasEl, { priceLabel: 'Costo unit.', priceSource: 'costo' });
     document.getElementById('oc-fecha-llegada').value = '';
+    document.getElementById('oc-es-importacion').checked = false;
+    document.getElementById('oc-importacion-campos').style.display = 'none';
+    document.getElementById('oc-imp-origen').value = '';
+    document.getElementById('oc-imp-destino').value = '';
+    document.getElementById('oc-imp-naviera').value = '';
+    document.getElementById('oc-imp-tracking').value = '';
     loadComprasView();
     loadDashboard();
   });
@@ -1555,7 +1614,7 @@
     cont.innerHTML = `<div class="loading-text">Cargando…</div>`;
 
     const { data, error } = await supabaseClient.from('importaciones')
-      .select('id, descripcion, origen, destino, naviera, contenedor_tracking, fecha_pedido, fecha_estimada_llegada, etapa, etapa_actualizada_en, proveedor_id, proveedores(nombre)')
+      .select('id, descripcion, origen, destino, naviera, contenedor_tracking, fecha_pedido, fecha_estimada_llegada, etapa, etapa_actualizada_en, proveedor_id, orden_compra_id, proveedores(nombre)')
       .order('etapa_actualizada_en', { ascending: false });
 
     if (error || !data) { cont.innerHTML = `<div class="placeholder-view">No se pudieron cargar las importaciones.</div>`; return; }
@@ -1576,6 +1635,7 @@
             </div>
           </div>
           <div class="import-card-actions">
+            ${imp.orden_compra_id ? `<button class="action-btn" data-ver-compra="${imp.orden_compra_id}">🚢 Ver compra vinculada</button>` : ''}
             <button class="action-btn" data-editar-importacion="${imp.id}">Editar</button>
           </div>
         </div>
@@ -1584,6 +1644,12 @@
 
     cont.querySelectorAll('[data-editar-importacion]').forEach(btn => {
       btn.addEventListener('click', () => openImportacionModal(importacionesById[btn.dataset.editarImportacion]));
+    });
+
+    cont.querySelectorAll('[data-ver-compra]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelector('.nav-item[data-view="compras"]').click();
+      });
     });
 
     cont.querySelectorAll('.import-stage').forEach(btn => {
