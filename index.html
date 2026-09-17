@@ -908,7 +908,7 @@
   // DASHBOARD
   // ==================================================
   async function loadDashboard() {
-    const { data: productos, error: errProductos } = await supabase
+    const { data: productos, error: errProductos } = await supabaseClient
       .from('productos').select('id, stock_actual, costo_ultimo');
 
     if (!errProductos && productos) {
@@ -917,7 +917,7 @@
       document.getElementById('kpi-valorizacion').textContent = formatARS(valorizacion);
     }
 
-    const { data: stockBajo, error: errStockBajo } = await supabase
+    const { data: stockBajo, error: errStockBajo } = await supabaseClient
       .from('vista_stock_bajo').select('*').order('stock_actual', { ascending: true });
 
     const tablaStockBajo = document.getElementById('tabla-stock-bajo');
@@ -931,7 +931,7 @@
       tablaStockBajo.innerHTML = `<tr class="empty-row"><td colspan="4">No se pudo cargar el stock.</td></tr>`;
     }
 
-    const { data: comprasPendientes, error: errCompras } = await supabase
+    const { data: comprasPendientes, error: errCompras } = await supabaseClient
       .from('vista_compras_pendientes').select('*').order('fecha_estimada_llegada', { ascending: true });
 
     const tablaCompras = document.getElementById('tabla-compras-pendientes');
