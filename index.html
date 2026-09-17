@@ -655,7 +655,7 @@
   // ---------- Configuración Supabase ----------
   const SUPABASE_URL = 'https://stnpcddipapodbfvmhex.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_rq5Na-UhGXlaElVbSWKlCg_yfpqQvPG';
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -714,7 +714,7 @@
     loginBtn.textContent = 'Ingresando…';
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     loginBtn.disabled = false;
     loginBtn.textContent = 'Ingresar';
     if (error) {
@@ -726,7 +726,7 @@
   });
 
   document.getElementById('logout-btn').addEventListener('click', async () => {
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
     showLogin();
   });
 
@@ -810,13 +810,13 @@
 
   async function ensureProveedoresCache(force = false) {
     if (proveedoresCache && !force) return proveedoresCache;
-    const { data, error } = await supabase.from('proveedores').select('id, nombre').order('nombre');
+    const { data, error } = await supabaseClient.from('proveedores').select('id, nombre').order('nombre');
     proveedoresCache = error ? [] : data;
     return proveedoresCache;
   }
   async function ensureClientesCache(force = false) {
     if (clientesCache && !force) return clientesCache;
-    const { data, error } = await supabase.from('clientes').select('id, nombre').order('nombre');
+    const { data, error } = await supabaseClient.from('clientes').select('id, nombre').order('nombre');
     clientesCache = error ? [] : data;
     return clientesCache;
   }
@@ -835,7 +835,7 @@
     const tbody = document.getElementById('tabla-productos');
     tbody.innerHTML = `<tr><td colspan="9" class="loading-text">Cargando…</td></tr>`;
 
-    let query = supabase.from('productos')
+    let query = supabaseClient.from('productos')
       .select('id, sku, codigo_barras, nombre, categoria, unidad_medida, costo_ultimo, precio_venta, stock_actual, stock_minimo, proveedor_principal_id, proveedores(nombre)')
       .order('nombre').limit(50);
 
@@ -919,8 +919,8 @@
     };
 
     const { error } = id
-      ? await supabase.from('productos').update(payload).eq('id', id)
-      : await supabase.from('productos').insert([payload]);
+      ? await supabaseClient.from('productos').update(payload).eq('id', id)
+      : await supabaseClient.from('productos').insert([payload]);
 
     const errEl = document.getElementById('mp-error');
     if (error) {
@@ -939,7 +939,7 @@
     if (!id) return;
     if (!confirm('¿Eliminar este producto? Esta acción no se puede deshacer.')) return;
 
-    const { error } = await supabase.from('productos').delete().eq('id', id);
+    const { error } = await supabaseClient.from('productos').delete().eq('id', id);
     const errEl = document.getElementById('mp-error');
     if (error) {
       errEl.textContent = error.code === '23503'
@@ -1112,7 +1112,7 @@
     for (let i = 0; i < payload.length; i += chunkSize) {
       const chunk = payload.slice(i, i + chunkSize);
       document.getElementById('mi-progress-text').textContent = `Importando ${Math.min(i + chunkSize, payload.length)} / ${payload.length}…`;
-      const { error } = await supabase.from('productos').upsert(chunk, { onConflict: 'sku' });
+      const { error } = await supabaseClient.from('productos').upsert(chunk, { onConflict: 'sku' });
       if (error) failed += chunk.length; else imported += chunk.length;
     }
 
@@ -1132,7 +1132,7 @@
   async function loadProveedoresView() {
     const tbody = document.getElementById('tabla-proveedores');
     tbody.innerHTML = `<tr><td colspan="6" class="loading-text">Cargando…</td></tr>`;
-    const { data, error } = await supabase.from('proveedores').select('*').order('nombre');
+    const { data, error } = await supabaseClient.from('proveedores').select('*').order('nombre');
     if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No se pudo cargar.</td></tr>`; return; }
     tbody.innerHTML = data.length ? data.map(p => `
       <tr>
@@ -1157,7 +1157,7 @@
       condiciones_pago: document.getElementById('mv-condiciones').value.trim() || null,
       plazo_entrega_dias: document.getElementById('mv-plazo').value ? Number(document.getElementById('mv-plazo').value) : null,
     };
-    const { error } = await supabase.from('proveedores').insert([payload]);
+    const { error } = await supabaseClient.from('proveedores').insert([payload]);
     if (error) {
       const errEl = document.getElementById('mv-error');
       errEl.textContent = 'No se pudo guardar el proveedor.';
@@ -1176,7 +1176,7 @@
   async function loadClientesView() {
     const tbody = document.getElementById('tabla-clientes');
     tbody.innerHTML = `<tr><td colspan="2" class="loading-text">Cargando…</td></tr>`;
-    const { data, error } = await supabase.from('clientes').select('*').order('nombre');
+    const { data, error } = await supabaseClient.from('clientes').select('*').order('nombre');
     if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="2">No se pudo cargar.</td></tr>`; return; }
     tbody.innerHTML = data.length ? data.map(c => `<tr><td>${c.nombre}</td><td>${c.contacto ?? '—'}</td></tr>`).join('')
       : `<tr class="empty-row"><td colspan="2">Todavía no cargaste clientes.</td></tr>`;
@@ -1194,7 +1194,7 @@
       nombre: document.getElementById('mc-nombre').value.trim(),
       contacto: document.getElementById('mc-contacto').value.trim() || null,
     };
-    const { error } = await supabase.from('clientes').insert([payload]);
+    const { error } = await supabaseClient.from('clientes').insert([payload]);
     if (error) {
       const errEl = document.getElementById('mc-error');
       errEl.textContent = 'No se pudo guardar el cliente.';
@@ -1240,7 +1240,7 @@
       hiddenId.value = '';
       selectedStock = null;
       if (!term) { list.classList.remove('open'); return; }
-      const { data, error } = await supabase.from('productos')
+      const { data, error } = await supabaseClient.from('productos')
         .select('id, sku, nombre, costo_ultimo, precio_venta, stock_actual')
         .or(`nombre.ilike.%${term}%,sku.ilike.%${term}%`).limit(8);
       if (error || !data || !data.length) {
@@ -1307,7 +1307,7 @@
 
     const tbody = document.getElementById('tabla-compras');
     tbody.innerHTML = `<tr><td colspan="5" class="loading-text">Cargando…</td></tr>`;
-    const { data, error } = await supabase.from('ordenes_compra')
+    const { data, error } = await supabaseClient.from('ordenes_compra')
       .select('id, fecha_emision, fecha_estimada_llegada, estado, proveedores(nombre)')
       .order('fecha_emision', { ascending: false }).limit(50);
 
@@ -1340,14 +1340,14 @@
     const submitBtn = document.getElementById('oc-submit');
     submitBtn.disabled = true;
 
-    const { data: orden, error: errOrden } = await supabase.from('ordenes_compra')
+    const { data: orden, error: errOrden } = await supabaseClient.from('ordenes_compra')
       .insert([{ proveedor_id, fecha_emision, fecha_estimada_llegada, estado: 'pendiente' }])
       .select().single();
 
     if (errOrden || !orden) { showToast('No se pudo crear la orden', 'error'); submitBtn.disabled = false; return; }
 
     const lineasPayload = lineas.map(l => ({ orden_compra_id: orden.id, producto_id: l.producto_id, cantidad_pedida: l.cantidad, costo_unitario: l.precio }));
-    const { error: errLineas } = await supabase.from('orden_compra_lineas').insert(lineasPayload);
+    const { error: errLineas } = await supabaseClient.from('orden_compra_lineas').insert(lineasPayload);
 
     submitBtn.disabled = false;
 
@@ -1367,11 +1367,11 @@
     cont.innerHTML = `<div class="loading-text">Cargando…</div>`;
     openModal('modal-recibir');
 
-    const { data: lineas, error: errLineas } = await supabase.from('orden_compra_lineas')
+    const { data: lineas, error: errLineas } = await supabaseClient.from('orden_compra_lineas')
       .select('id, producto_id, cantidad_pedida, costo_unitario, productos(nombre, sku)')
       .eq('orden_compra_id', ordenId);
 
-    const { data: recepciones } = await supabase.from('recepciones')
+    const { data: recepciones } = await supabaseClient.from('recepciones')
       .select('id, recepcion_lineas(producto_id, cantidad_recibida)')
       .eq('orden_compra_id', ordenId);
 
@@ -1406,13 +1406,13 @@
 
       if (!payload.length) { showToast('Ingresá alguna cantidad a recibir', 'error'); return; }
 
-      const { data: recepcion, error: errRec } = await supabase.from('recepciones')
+      const { data: recepcion, error: errRec } = await supabaseClient.from('recepciones')
         .insert([{ orden_compra_id: ordenId, fecha_real: todayStr() }]).select().single();
 
       if (errRec || !recepcion) { showToast('No se pudo registrar la recepción', 'error'); return; }
 
       const lineasPayload = payload.map(l => ({ recepcion_id: recepcion.id, producto_id: l.producto_id, cantidad_recibida: l.cantidad_recibida, costo_unitario: l.costo_unitario }));
-      const { error: errLineasRec } = await supabase.from('recepcion_lineas').insert(lineasPayload);
+      const { error: errLineasRec } = await supabaseClient.from('recepcion_lineas').insert(lineasPayload);
 
       if (errLineasRec) { showToast('La recepción se creó pero hubo un error con las líneas', 'error'); return; }
 
@@ -1436,7 +1436,7 @@
 
     const tbody = document.getElementById('tabla-ventas');
     tbody.innerHTML = `<tr><td colspan="3" class="loading-text">Cargando…</td></tr>`;
-    const { data, error } = await supabase.from('ventas')
+    const { data, error } = await supabaseClient.from('ventas')
       .select('id, fecha, clientes(nombre), venta_lineas(cantidad, precio_unitario)')
       .order('fecha', { ascending: false }).limit(50);
 
@@ -1459,13 +1459,13 @@
     const submitBtn = document.getElementById('v-submit');
     submitBtn.disabled = true;
 
-    const { data: venta, error: errVenta } = await supabase.from('ventas')
+    const { data: venta, error: errVenta } = await supabaseClient.from('ventas')
       .insert([{ cliente_id, fecha }]).select().single();
 
     if (errVenta || !venta) { showToast('No se pudo registrar la venta', 'error'); submitBtn.disabled = false; return; }
 
     const lineasPayload = lineas.map(l => ({ venta_id: venta.id, producto_id: l.producto_id, cantidad: l.cantidad, precio_unitario: l.precio }));
-    const { error: errLineas } = await supabase.from('venta_lineas').insert(lineasPayload);
+    const { error: errLineas } = await supabaseClient.from('venta_lineas').insert(lineasPayload);
 
     submitBtn.disabled = false;
 
@@ -1480,7 +1480,7 @@
 
   // ---------- Sesión inicial ----------
   (async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) showApp(session.user.email); else showLogin();
   })();
 </script>
