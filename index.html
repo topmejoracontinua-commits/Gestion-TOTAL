@@ -425,14 +425,31 @@
           </div>
         </div>
         <div class="panel-wide">
-          <div class="panel-wide-head">
-            <h3>Buscar</h3>
-            <input type="text" class="search-input" id="prod-search" placeholder="Buscar por SKU o nombre…">
+          <div class="panel-wide-head" style="align-items:flex-end;">
+            <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:flex-end;">
+              <div>
+                <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Buscar</label>
+                <input type="text" class="search-input" id="prod-search" placeholder="Buscar por SKU o nombre…">
+              </div>
+              <div>
+                <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Categoría</label>
+                <select id="prod-filtro-categoria" class="search-input" style="width:150px;"><option value="">Todas</option></select>
+              </div>
+              <div>
+                <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Marca</label>
+                <select id="prod-filtro-marca" class="search-input" style="width:170px;"><option value="">Todas</option></select>
+              </div>
+              <div>
+                <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Proveedor</label>
+                <select id="prod-filtro-proveedor" class="search-input" style="width:170px;"><option value="">Todos</option></select>
+              </div>
+              <button type="button" class="btn-secondary" id="prod-filtros-limpiar">Limpiar filtros</button>
+            </div>
           </div>
           <div class="table-scroll">
             <table>
-              <thead><tr><th>SKU</th><th>Nombre</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Costo</th><th>Precio</th><th>Proveedor</th><th>Acciones</th></tr></thead>
-              <tbody id="tabla-productos"><tr><td colspan="9" class="loading-text">Cargando…</td></tr></tbody>
+              <thead><tr><th>SKU</th><th>Nombre</th><th>Marca</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Costo</th><th>Precio</th><th>Proveedor</th><th>Acciones</th></tr></thead>
+              <tbody id="tabla-productos"><tr><td colspan="10" class="loading-text">Cargando…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -591,7 +608,10 @@
       </div>
       <div class="field"><label>Nombre</label><input type="text" id="mp-nombre" required></div>
       <div class="form-row">
-        <div class="field"><label>Categoría</label><input type="text" id="mp-categoria"></div>
+        <div class="field"><label>Marca</label><input type="text" id="mp-marca" placeholder="Ej: Dunlop"></div>
+        <div class="field"><label>Categoría</label><input type="text" id="mp-categoria" placeholder="Ej: PCR"></div>
+      </div>
+      <div class="form-row">
         <div class="field"><label>Unidad de medida</label><input type="text" id="mp-unidad" value="unidad"></div>
       </div>
       <div class="form-row">
@@ -681,7 +701,7 @@
 
 <div class="modal-overlay" id="modal-recibir">
   <div class="modal" style="max-width: 560px;">
-    <h3>Registrar recepción</h3>
+    <h3 id="mr-title">Registrar recepción</h3>
     <div class="form-error" id="mr-error"></div>
     <div id="mr-lineas"></div>
     <div class="modal-close-row">
@@ -715,18 +735,21 @@
         <div class="field"><label>Nombre *</label><select id="mi-map-nombre"></select></div>
       </div>
       <div class="form-row">
+        <div class="field"><label>Marca</label><select id="mi-map-marca"></select></div>
         <div class="field"><label>Categoría</label><select id="mi-map-categoria"></select></div>
+      </div>
+      <div class="form-row">
         <div class="field"><label>Unidad de medida</label><select id="mi-map-unidad"></select></div>
-      </div>
-      <div class="form-row">
         <div class="field"><label>Costo</label><select id="mi-map-costo"></select></div>
-        <div class="field"><label>Precio de venta</label><select id="mi-map-precio"></select></div>
       </div>
       <div class="form-row">
+        <div class="field"><label>Precio de venta</label><select id="mi-map-precio"></select></div>
         <div class="field"><label>Stock actual</label><select id="mi-map-stock"></select></div>
-        <div class="field"><label>Stock mínimo</label><select id="mi-map-stock-min"></select></div>
       </div>
-      <div class="field"><label>Proveedor (por nombre, opcional)</label><select id="mi-map-proveedor"></select></div>
+      <div class="form-row">
+        <div class="field"><label>Stock mínimo</label><select id="mi-map-stock-min"></select></div>
+        <div class="field"><label>Proveedor (por nombre, opcional)</label><select id="mi-map-proveedor"></select></div>
+      </div>
 
       <div class="panel-wide" style="margin-top:1rem;">
         <div class="panel-wide-head"><h3>Vista previa (primeras 5 filas)</h3></div>
@@ -832,7 +855,7 @@
   // ---------- Navegación ----------
   const viewLoaders = {
     dashboard: loadDashboard,
-    productos: () => loadProductosView(),
+    productos: () => initProductosFiltros().then(loadProductosView),
     proveedores: loadProveedoresView,
     clientes: loadClientesView,
     compras: loadComprasView,
@@ -921,6 +944,28 @@
     return clientesCache;
   }
 
+  let categoriasCache = null;
+  let marcasCache = null;
+
+  async function ensureCategoriasCache(force = false) {
+    if (categoriasCache && !force) return categoriasCache;
+    const { data, error } = await supabaseClient.from('vista_categorias_productos').select('categoria');
+    categoriasCache = error ? [] : data.map(r => r.categoria);
+    return categoriasCache;
+  }
+  async function ensureMarcasCache(force = false) {
+    if (marcasCache && !force) return marcasCache;
+    const { data, error } = await supabaseClient.from('vista_marcas_productos').select('marca');
+    marcasCache = error ? [] : data.map(r => r.marca);
+    return marcasCache;
+  }
+
+  function fillSimpleSelect(selectEl, values, placeholder) {
+    const current = selectEl.value;
+    selectEl.innerHTML = `<option value="">${placeholder}</option>` + values.map(v => `<option value="${v}">${v}</option>`).join('');
+    if (values.includes(current)) selectEl.value = current;
+  }
+
   function fillSelect(selectEl, items, placeholder) {
     selectEl.innerHTML = (placeholder ? `<option value="">${placeholder}</option>` : '') +
       items.map(i => `<option value="${i.id}">${i.nombre}</option>`).join('');
@@ -931,18 +976,26 @@
   // ==================================================
   let productosById = {};
 
-  async function loadProductosView(term = '') {
+  async function loadProductosView() {
     const tbody = document.getElementById('tabla-productos');
-    tbody.innerHTML = `<tr><td colspan="9" class="loading-text">Cargando…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="loading-text">Cargando…</td></tr>`;
+
+    const term = document.getElementById('prod-search').value.trim();
+    const categoria = document.getElementById('prod-filtro-categoria').value;
+    const marca = document.getElementById('prod-filtro-marca').value;
+    const proveedorId = document.getElementById('prod-filtro-proveedor').value;
 
     let query = supabaseClient.from('productos')
-      .select('id, sku, codigo_barras, nombre, categoria, unidad_medida, costo_ultimo, precio_venta, stock_actual, stock_minimo, proveedor_principal_id, proveedores(nombre)')
+      .select('id, sku, codigo_barras, nombre, marca, categoria, unidad_medida, costo_ultimo, precio_venta, stock_actual, stock_minimo, proveedor_principal_id, proveedores(nombre)')
       .order('nombre').limit(50);
 
     if (term) query = query.or(`nombre.ilike.%${term}%,sku.ilike.%${term}%`);
+    if (categoria) query = query.eq('categoria', categoria);
+    if (marca) query = query.eq('marca', marca);
+    if (proveedorId) query = query.eq('proveedor_principal_id', proveedorId);
 
     const { data, error } = await query;
-    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No se pudo cargar el catálogo.</td></tr>`; return; }
+    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="10">No se pudo cargar el catálogo.</td></tr>`; return; }
 
     productosById = {};
     data.forEach(p => productosById[p.id] = p);
@@ -951,6 +1004,7 @@
       <tr>
         <td>${p.sku}</td>
         <td>${p.nombre}</td>
+        <td>${p.marca ?? '—'}</td>
         <td>${p.categoria ?? '—'}</td>
         <td class="${Number(p.stock_actual) <= Number(p.stock_minimo) ? 'badge-red' : ''}">${p.stock_actual}</td>
         <td>${p.stock_minimo}</td>
@@ -958,14 +1012,33 @@
         <td>${formatARS(p.precio_venta)}</td>
         <td>${p.proveedores?.nombre ?? '—'}</td>
         <td style="white-space:nowrap;"><button class="action-btn" data-editar-producto="${p.id}">Editar</button></td>
-      </tr>`).join('') : `<tr class="empty-row"><td colspan="9">Sin resultados.</td></tr>`;
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="10">Sin resultados.</td></tr>`;
 
     tbody.querySelectorAll('[data-editar-producto]').forEach(btn => {
       btn.addEventListener('click', () => openProductoModal(productosById[btn.dataset.editarProducto]));
     });
   }
 
-  document.getElementById('prod-search').addEventListener('input', debounce((e) => loadProductosView(e.target.value.trim()), 300));
+  async function initProductosFiltros() {
+    const [categorias, marcas, proveedores] = await Promise.all([
+      ensureCategoriasCache(), ensureMarcasCache(), ensureProveedoresCache(),
+    ]);
+    fillSimpleSelect(document.getElementById('prod-filtro-categoria'), categorias, 'Todas');
+    fillSimpleSelect(document.getElementById('prod-filtro-marca'), marcas, 'Todas');
+    fillSelect(document.getElementById('prod-filtro-proveedor'), proveedores, 'Todos');
+  }
+
+  document.getElementById('prod-search').addEventListener('input', debounce(() => loadProductosView(), 300));
+  document.getElementById('prod-filtro-categoria').addEventListener('change', () => loadProductosView());
+  document.getElementById('prod-filtro-marca').addEventListener('change', () => loadProductosView());
+  document.getElementById('prod-filtro-proveedor').addEventListener('change', () => loadProductosView());
+  document.getElementById('prod-filtros-limpiar').addEventListener('click', () => {
+    document.getElementById('prod-search').value = '';
+    document.getElementById('prod-filtro-categoria').value = '';
+    document.getElementById('prod-filtro-marca').value = '';
+    document.getElementById('prod-filtro-proveedor').value = '';
+    loadProductosView();
+  });
 
   async function openProductoModal(producto) {
     const proveedores = await ensureProveedoresCache();
@@ -979,6 +1052,7 @@
       document.getElementById('mp-sku').value = producto.sku ?? '';
       document.getElementById('mp-codigo-barras').value = producto.codigo_barras ?? '';
       document.getElementById('mp-nombre').value = producto.nombre ?? '';
+      document.getElementById('mp-marca').value = producto.marca ?? '';
       document.getElementById('mp-categoria').value = producto.categoria ?? '';
       document.getElementById('mp-unidad').value = producto.unidad_medida ?? 'unidad';
       document.getElementById('mp-costo').value = producto.costo_ultimo ?? 0;
@@ -1009,6 +1083,7 @@
       sku: document.getElementById('mp-sku').value.trim(),
       codigo_barras: document.getElementById('mp-codigo-barras').value.trim() || null,
       nombre: document.getElementById('mp-nombre').value.trim(),
+      marca: document.getElementById('mp-marca').value.trim() || null,
       categoria: document.getElementById('mp-categoria').value.trim() || null,
       unidad_medida: document.getElementById('mp-unidad').value.trim() || 'unidad',
       costo_ultimo: Number(document.getElementById('mp-costo').value) || 0,
@@ -1030,7 +1105,10 @@
     }
     closeModal('modal-producto');
     showToast(id ? 'Producto actualizado' : 'Producto creado');
-    loadProductosView(document.getElementById('prod-search').value.trim());
+    await Promise.all([ensureCategoriasCache(true), ensureMarcasCache(true)]);
+    fillSimpleSelect(document.getElementById('prod-filtro-categoria'), categoriasCache, 'Todas');
+    fillSimpleSelect(document.getElementById('prod-filtro-marca'), marcasCache, 'Todas');
+    loadProductosView();
     loadDashboard();
   });
 
@@ -1050,7 +1128,7 @@
     }
     closeModal('modal-producto');
     showToast('Producto eliminado');
-    loadProductosView(document.getElementById('prod-search').value.trim());
+    loadProductosView();
     loadDashboard();
   });
 
@@ -1059,7 +1137,7 @@
   // ==================================================
   let miRows = [];
   const miFieldSelects = {
-    sku: 'mi-map-sku', nombre: 'mi-map-nombre', categoria: 'mi-map-categoria', unidad: 'mi-map-unidad',
+    sku: 'mi-map-sku', nombre: 'mi-map-nombre', marca: 'mi-map-marca', categoria: 'mi-map-categoria', unidad: 'mi-map-unidad',
     costo: 'mi-map-costo', precio: 'mi-map-precio', stock: 'mi-map-stock', stockMin: 'mi-map-stock-min',
     proveedor: 'mi-map-proveedor',
   };
@@ -1102,13 +1180,14 @@
         const guesses = {
           sku: guessColumn(headers, ['sku', 'codigo', 'código']),
           nombre: guessColumn(headers, ['nombre', 'producto', 'descripcion', 'descripción']),
+          marca: guessColumn(headers, ['marca', 'brand']),
           categoria: guessColumn(headers, ['categoria', 'categoría', 'rubro']),
           unidad: guessColumn(headers, ['unidad', 'um']),
           costo: guessColumn(headers, ['costo', 'compra']),
           precio: guessColumn(headers, ['precio', 'venta']),
           stock: guessColumn(headers, ['stock', 'existencia', 'cantidad']),
           stockMin: guessColumn(headers, ['minimo', 'mínimo', 'stock min']),
-          proveedor: guessColumn(headers, ['proveedor', 'marca']),
+          proveedor: guessColumn(headers, ['proveedor']),
         };
 
         Object.entries(miFieldSelects).forEach(([key, selectId]) => {
@@ -1140,6 +1219,7 @@
     return {
       sku: document.getElementById('mi-map-sku').value,
       nombre: document.getElementById('mi-map-nombre').value,
+      marca: document.getElementById('mi-map-marca').value,
       categoria: document.getElementById('mi-map-categoria').value,
       unidad: document.getElementById('mi-map-unidad').value,
       costo: document.getElementById('mi-map-costo').value,
@@ -1185,6 +1265,7 @@
       return {
         sku,
         nombre,
+        marca: mapping.marca ? String(row[mapping.marca] ?? '').trim() || null : null,
         categoria: mapping.categoria ? String(row[mapping.categoria] ?? '').trim() || null : null,
         unidad_medida: mapping.unidad ? String(row[mapping.unidad] ?? '').trim() || 'unidad' : 'unidad',
         costo_ultimo: mapping.costo ? Number(row[mapping.costo]) || 0 : 0,
@@ -1231,6 +1312,9 @@
       (duplicados ? `(${duplicados} filas con SKU repetido, se usó la última de cada una)` : '');
 
     showToast(failed ? 'Importación terminada con errores' : 'Importación completa', failed ? 'error' : 'success');
+    await Promise.all([ensureCategoriasCache(true), ensureMarcasCache(true)]);
+    fillSimpleSelect(document.getElementById('prod-filtro-categoria'), categoriasCache, 'Todas');
+    fillSimpleSelect(document.getElementById('prod-filtro-marca'), marcasCache, 'Todas');
     loadProductosView();
     loadDashboard();
 
@@ -1438,11 +1522,17 @@
         <td>${formatFecha(o.fecha_emision)}</td>
         <td>${formatFecha(o.fecha_estimada_llegada)}</td>
         <td>${estadoLabel[o.estado] ?? o.estado}</td>
-        <td>${o.estado === 'recibida' || o.estado === 'cancelada' ? '—' : `<button class="action-btn" data-recibir="${o.id}">Recibir</button>`}</td>
+        <td style="white-space:nowrap; display:flex; gap:0.4rem;">
+          <button class="action-btn" data-detalle="${o.id}" data-estado="${o.estado}">Ver productos</button>
+          ${o.estado === 'pendiente' || o.estado === 'parcial' ? `<button class="action-btn" data-recibir="${o.id}">Recibir</button>` : ''}
+        </td>
       </tr>`).join('') : `<tr class="empty-row"><td colspan="6">Todavía no cargaste órdenes de compra.</td></tr>`;
 
     tbody.querySelectorAll('[data-recibir]').forEach(btn => {
-      btn.addEventListener('click', () => openRecibirModal(btn.dataset.recibir));
+      btn.addEventListener('click', () => openRecibirModal(btn.dataset.recibir, true));
+    });
+    tbody.querySelectorAll('[data-detalle]').forEach(btn => {
+      btn.addEventListener('click', () => openRecibirModal(btn.dataset.detalle, btn.dataset.estado === 'pendiente' || btn.dataset.estado === 'parcial'));
     });
   }
 
@@ -1502,8 +1592,10 @@
     loadDashboard();
   });
 
-  async function openRecibirModal(ordenId) {
+  async function openRecibirModal(ordenId, editable = true) {
     document.getElementById('mr-error').style.display = 'none';
+    document.getElementById('mr-title').textContent = editable ? 'Registrar recepción' : 'Detalle de la orden';
+    document.getElementById('mr-submit').style.display = editable ? 'inline-block' : 'none';
     const cont = document.getElementById('mr-lineas');
     cont.innerHTML = `<div class="loading-text">Cargando…</div>`;
     openModal('modal-recibir');
@@ -1523,19 +1615,38 @@
       recibidoPorProducto[l.producto_id] = (recibidoPorProducto[l.producto_id] || 0) + Number(l.cantidad_recibida);
     }));
 
-    cont.innerHTML = lineas.map(l => {
-      const recibido = recibidoPorProducto[l.producto_id] || 0;
-      const pendiente = Math.max(Number(l.cantidad_pedida) - recibido, 0);
-      return `
-        <div class="line-item-row" data-linea="${l.id}" data-producto="${l.producto_id}" style="grid-template-columns: 1fr 90px 110px; margin-bottom: 0.7rem;">
-          <div>
-            <div style="font-weight:600; font-size:0.88rem;">${l.productos?.nombre ?? '—'}</div>
-            <div style="font-size:0.75rem; color:var(--gray-mid);">${l.productos?.sku ?? ''} · pedido ${l.cantidad_pedida} · recibido ${recibido}</div>
-          </div>
-          <input type="number" class="mr-cantidad" min="0" step="0.01" placeholder="Recibir" value="${pendiente > 0 ? pendiente : ''}">
-          <input type="number" class="mr-costo" min="0" step="0.01" value="${l.costo_unitario}">
-        </div>`;
-    }).join('');
+    if (editable) {
+      cont.innerHTML = lineas.map(l => {
+        const recibido = recibidoPorProducto[l.producto_id] || 0;
+        const pendiente = Math.max(Number(l.cantidad_pedida) - recibido, 0);
+        return `
+          <div class="line-item-row" data-linea="${l.id}" data-producto="${l.producto_id}" style="grid-template-columns: 1fr 90px 110px; margin-bottom: 0.7rem;">
+            <div>
+              <div style="font-weight:600; font-size:0.88rem;">${l.productos?.nombre ?? '—'}</div>
+              <div style="font-size:0.75rem; color:var(--gray-mid);">${l.productos?.sku ?? ''} · pedido ${l.cantidad_pedida} · recibido ${recibido}</div>
+            </div>
+            <input type="number" class="mr-cantidad" min="0" step="0.01" placeholder="Recibir" value="${pendiente > 0 ? pendiente : ''}">
+            <input type="number" class="mr-costo" min="0" step="0.01" value="${l.costo_unitario}">
+          </div>`;
+      }).join('');
+    } else {
+      cont.innerHTML = `
+        <table>
+          <thead><tr><th>SKU</th><th>Producto</th><th>Pedido</th><th>Recibido</th><th>Costo unit.</th></tr></thead>
+          <tbody>
+            ${lineas.map(l => `
+              <tr>
+                <td>${l.productos?.sku ?? '—'}</td>
+                <td>${l.productos?.nombre ?? '—'}</td>
+                <td>${l.cantidad_pedida}</td>
+                <td>${recibidoPorProducto[l.producto_id] || 0}</td>
+                <td>${formatARS(l.costo_unitario)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    if (!editable) return;
 
     document.getElementById('mr-submit').onclick = async () => {
       const rows = [...cont.querySelectorAll('.line-item-row')];
