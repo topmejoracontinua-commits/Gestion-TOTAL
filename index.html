@@ -211,6 +211,27 @@
     padding: 0.5rem 0.7rem; border: 1.5px solid var(--gray-border); border-radius: 8px; font-size: 0.83rem;
   }
 
+  /* Líneas de solicitud (productos) */
+  .pline-add-row { display: grid; grid-template-columns: 1fr 100px 130px 90px; gap: 0.5rem; margin-bottom: 0.8rem; align-items: start; }
+  @media (max-width: 700px) { .pline-add-row { grid-template-columns: 1fr; } }
+  .pline-autocomplete { position: relative; }
+  .pline-autocomplete input[type="text"] {
+    width: 100%; padding: 0.55rem 0.7rem; border: 1.5px solid var(--gray-border); border-radius: 8px; font-size: 0.85rem;
+  }
+  .pline-autocomplete input[type="text"]:focus { border-color: var(--blue); outline: none; }
+  .pline-list {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--white);
+    border: 1px solid var(--gray-border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    z-index: 20; max-height: 200px; overflow-y: auto;
+  }
+  .pline-list.open { display: block; }
+  .pline-item { padding: 0.55rem 0.7rem; font-size: 0.83rem; cursor: pointer; }
+  .pline-item:hover { background: var(--gray-light); }
+  .pline-item .pline-sub { color: var(--gray-mid); font-size: 0.75rem; }
+  .pline-add-row input[type="number"] {
+    width: 100%; padding: 0.55rem 0.7rem; border: 1.5px solid var(--gray-border); border-radius: 8px; font-size: 0.85rem;
+  }
+
   .modal-overlay {
     display: none; position: fixed; inset: 0; background: rgba(11,18,32,0.5); align-items: center; justify-content: center;
     z-index: 100; padding: 1.5rem;
@@ -268,11 +289,13 @@
       <div class="sidebar-sub">PY · TOP · CABAÑAS</div>
 
       <div class="nav-item active" data-view="dashboard"><span class="nav-dot"></span>Dashboard</div>
+      <div class="nav-item" data-view="compras"><span class="nav-dot"></span>Compras</div>
       <div class="nav-item" data-view="importaciones"><span class="nav-dot"></span>Importaciones</div>
       <div class="nav-item" data-view="transferencias"><span class="nav-dot"></span>Transferencias</div>
       <div class="nav-item" data-view="pagos"><span class="nav-dot"></span>Pagos</div>
       <div class="nav-item" data-view="saldos"><span class="nav-dot"></span>Saldos</div>
       <div class="nav-item" data-view="proveedores"><span class="nav-dot"></span>Proveedores</div>
+      <div class="nav-item" data-view="productos"><span class="nav-dot"></span>Productos</div>
 
       <div class="sidebar-footer">
         <div class="user-email" id="user-email"></div>
@@ -306,6 +329,54 @@
             <table>
               <thead><tr><th>Debe</th><th>A favor de</th><th>Pendiente</th></tr></thead>
               <tbody id="tabla-dash-saldos"><tr><td colspan="3" class="loading-text">Cargando…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== COMPRAS ===================== -->
+      <div class="view" id="view-compras">
+        <div class="main-header">
+          <div><h1>Compras</h1><p>Solicitud → Orden de compra → Proforma → Factura</p></div>
+          <button class="btn-primary" id="btn-nueva-solicitud">+ Nueva solicitud</button>
+        </div>
+
+        <div class="panel-wide-head" style="background:var(--white); border:1px solid var(--gray-border); border-radius:12px; margin-bottom:1.25rem;">
+          <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:flex-end;">
+            <div>
+              <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Empresa</label>
+              <select id="sol-filtro-empresa" class="search-input"><option value="">Todas</option></select>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Proveedor</label>
+              <select id="sol-filtro-proveedor" class="search-input"><option value="">Todos</option></select>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Etapa</label>
+              <select id="sol-filtro-etapa" class="search-input"><option value="">Todas</option></select>
+            </div>
+            <button type="button" class="btn-secondary" id="sol-filtros-limpiar">Limpiar filtros</button>
+          </div>
+        </div>
+
+        <div id="lista-solicitudes"><div class="loading-text">Cargando…</div></div>
+      </div>
+
+      <!-- ===================== PRODUCTOS ===================== -->
+      <div class="view" id="view-productos">
+        <div class="main-header">
+          <div><h1>Productos</h1><p>Catálogo compartido (medida, marca, categoría, gama)</p></div>
+          <button class="btn-primary" id="btn-nuevo-producto">+ Nuevo producto</button>
+        </div>
+        <div class="panel-wide">
+          <div class="panel-wide-head">
+            <h3>Buscar</h3>
+            <input type="text" class="search-input" id="prod-search" placeholder="Buscar por código o descripción…">
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Código</th><th>Descripción</th><th>Medida</th><th>Marca</th><th>Categoría</th><th>Gama</th><th>Acciones</th></tr></thead>
+              <tbody id="tabla-productos"><tr><td colspan="7" class="loading-text">Cargando…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -443,6 +514,59 @@
 </div>
 
 <!-- ===================== MODALES ===================== -->
+
+<div class="modal-overlay" id="modal-solicitud">
+  <div class="modal" style="max-width: 520px;">
+    <h3 id="msol-title">Nueva solicitud</h3>
+    <div class="form-error" id="msol-error"></div>
+    <form id="msol-form">
+      <input type="hidden" id="msol-id">
+      <div class="form-row">
+        <div class="field"><label>Empresa compradora</label><select id="msol-empresa" required></select></div>
+        <div class="field"><label>Proveedor</label><select id="msol-proveedor"><option value="">— A definir —</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Condición de pago</label><input type="text" id="msol-condicion-pago" placeholder="Ej: 30% anticipo, 70% CI"></div>
+        <div class="field"><label>Puerto destino</label><input type="text" id="msol-puerto-destino"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Incoterm</label><input type="text" id="msol-incoterm" placeholder="Ej: FOB"></div>
+        <div class="field"><label>Fecha</label><input type="date" id="msol-fecha" required></div>
+      </div>
+      <div class="field"><label>Notas</label><input type="text" id="msol-notas"></div>
+      <div class="modal-close-row">
+        <button type="button" class="btn-secondary" id="msol-delete-btn" style="display:none; margin-right:auto; border-color:var(--red); color:var(--red);">Eliminar</button>
+        <button type="button" class="btn-secondary" data-close-modal="modal-solicitud">Cancelar</button>
+        <button type="submit" class="btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-producto">
+  <div class="modal">
+    <h3 id="mp-title">Nuevo producto</h3>
+    <div class="form-error" id="mp-error"></div>
+    <form id="mp-form">
+      <input type="hidden" id="mp-id">
+      <div class="form-row">
+        <div class="field"><label>Código</label><input type="text" id="mp-codigo"></div>
+        <div class="field"><label>Medida</label><input type="text" id="mp-medida" placeholder="Ej: 195/65R15"></div>
+      </div>
+      <div class="field"><label>Descripción</label><input type="text" id="mp-descripcion" required></div>
+      <div class="form-row">
+        <div class="field"><label>Marca</label><input type="text" id="mp-marca"></div>
+        <div class="field"><label>Categoría</label><input type="text" id="mp-categoria" placeholder="PCR/TBR/LTR"></div>
+      </div>
+      <div class="field"><label>Gama</label><input type="text" id="mp-gama"></div>
+      <div class="modal-close-row">
+        <button type="button" class="btn-secondary" id="mp-delete-btn" style="display:none; margin-right:auto; border-color:var(--red); color:var(--red);">Eliminar</button>
+        <button type="button" class="btn-secondary" data-close-modal="modal-producto">Cancelar</button>
+        <button type="submit" class="btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <div class="modal-overlay" id="modal-importacion">
   <div class="modal" style="max-width: 560px;">
@@ -598,11 +722,13 @@
   // ---------- Navegación ----------
   const viewLoaders = {
     dashboard: loadDashboard,
+    compras: loadComprasView,
     importaciones: loadImportacionesView,
     transferencias: loadTransferenciasView,
     pagos: loadPagosView,
     saldos: loadSaldosView,
     proveedores: loadProveedoresView,
+    productos: loadProductosView,
   };
 
   document.querySelectorAll('.nav-item').forEach(item => {
@@ -675,6 +801,416 @@
     const { data: transferencias } = await supabaseClient.from('transferencias_intercompania').select('id, estado').neq('estado', 'pagado').neq('estado', 'cancelado');
     document.getElementById('kpi-transf-pendientes').textContent = transferencias ? transferencias.length : '—';
   }
+
+  // ==================================================
+  // PRODUCTOS (catálogo)
+  // ==================================================
+  let productosById = {};
+
+  async function loadProductosView() {
+    const tbody = document.getElementById('tabla-productos');
+    tbody.innerHTML = `<tr><td colspan="7" class="loading-text">Cargando…</td></tr>`;
+    const term = document.getElementById('prod-search').value.trim();
+
+    let query = supabaseClient.from('productos').select('*').order('descripcion').limit(50);
+    if (term) query = query.or(`descripcion.ilike.%${term}%,codigo.ilike.%${term}%`);
+    const { data, error } = await query;
+    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="7">No se pudo cargar.</td></tr>`; return; }
+
+    productosById = {};
+    data.forEach(p => productosById[p.id] = p);
+
+    tbody.innerHTML = data.length ? data.map(p => `
+      <tr>
+        <td>${p.codigo ?? '—'}</td><td>${p.descripcion}</td><td>${p.medida ?? '—'}</td><td>${p.marca ?? '—'}</td><td>${p.categoria ?? '—'}</td><td>${p.gama ?? '—'}</td>
+        <td><button class="action-btn" data-editar-producto="${p.id}">Editar</button></td>
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Todavía no cargaste productos.</td></tr>`;
+
+    tbody.querySelectorAll('[data-editar-producto]').forEach(btn => {
+      btn.addEventListener('click', () => openProductoModal(productosById[btn.dataset.editarProducto]));
+    });
+  }
+
+  document.getElementById('prod-search').addEventListener('input', debounce(loadProductosView, 300));
+
+  function openProductoModal(prod) {
+    document.getElementById('mp-form').reset();
+    document.getElementById('mp-error').style.display = 'none';
+    if (prod) {
+      document.getElementById('mp-title').textContent = 'Editar producto';
+      document.getElementById('mp-id').value = prod.id;
+      document.getElementById('mp-codigo').value = prod.codigo ?? '';
+      document.getElementById('mp-medida').value = prod.medida ?? '';
+      document.getElementById('mp-descripcion').value = prod.descripcion ?? '';
+      document.getElementById('mp-marca').value = prod.marca ?? '';
+      document.getElementById('mp-categoria').value = prod.categoria ?? '';
+      document.getElementById('mp-gama').value = prod.gama ?? '';
+      document.getElementById('mp-delete-btn').style.display = 'inline-block';
+    } else {
+      document.getElementById('mp-title').textContent = 'Nuevo producto';
+      document.getElementById('mp-id').value = '';
+      document.getElementById('mp-delete-btn').style.display = 'none';
+    }
+    openModal('modal-producto');
+  }
+
+  document.getElementById('btn-nuevo-producto').addEventListener('click', () => openProductoModal(null));
+
+  document.getElementById('mp-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('mp-id').value;
+    const payload = {
+      codigo: document.getElementById('mp-codigo').value.trim() || null,
+      descripcion: document.getElementById('mp-descripcion').value.trim(),
+      medida: document.getElementById('mp-medida').value.trim() || null,
+      marca: document.getElementById('mp-marca').value.trim() || null,
+      categoria: document.getElementById('mp-categoria').value.trim() || null,
+      gama: document.getElementById('mp-gama').value.trim() || null,
+    };
+    const { error } = id
+      ? await supabaseClient.from('productos').update(payload).eq('id', id)
+      : await supabaseClient.from('productos').insert([payload]);
+    const errEl = document.getElementById('mp-error');
+    if (error) { errEl.textContent = 'No se pudo guardar el producto.'; errEl.style.display = 'block'; return; }
+    closeModal('modal-producto');
+    showToast(id ? 'Producto actualizado' : 'Producto creado');
+    loadProductosView();
+  });
+
+  document.getElementById('mp-delete-btn').addEventListener('click', async () => {
+    const id = document.getElementById('mp-id').value;
+    if (!id) return;
+    if (!confirm('¿Eliminar este producto?')) return;
+    const { error } = await supabaseClient.from('productos').delete().eq('id', id);
+    if (error) {
+      const errEl = document.getElementById('mp-error');
+      errEl.textContent = error.code === '23503' ? 'No se puede eliminar: está en líneas de alguna solicitud.' : 'No se pudo eliminar.';
+      errEl.style.display = 'block';
+      return;
+    }
+    closeModal('modal-producto');
+    showToast('Producto eliminado');
+    loadProductosView();
+  });
+
+  // ==================================================
+  // COMPRAS (Solicitud -> Orden de compra -> Proforma -> Factura)
+  // ==================================================
+  const ETAPAS_COMPRA = [
+    { key: 'solicitud', label: 'Solicitud' },
+    { key: 'orden_compra', label: 'Orden de compra' },
+    { key: 'proforma', label: 'Proforma' },
+    { key: 'factura', label: 'Factura' },
+  ];
+  const etapaCompraLabel = Object.fromEntries(ETAPAS_COMPRA.map(e => [e.key, e.label]));
+
+  let solicitudesById = {};
+
+  function renderCompraTrack(sol) {
+    const idx = ETAPAS_COMPRA.findIndex(e => e.key === sol.etapa);
+    const pct = idx <= 0 ? 0 : (idx / (ETAPAS_COMPRA.length - 1)) * 100;
+    const stages = ETAPAS_COMPRA.map((etapa, i) => {
+      const cls = i < idx ? 'done' : i === idx ? 'current' : '';
+      return `
+        <button type="button" class="import-stage ${cls}" data-solicitud="${sol.id}" data-etapa="${etapa.key}" title="${etapa.label}">
+          <div class="dot">${i + 1}</div>
+          <div class="label">${etapa.label}</div>
+        </button>`;
+    }).join('');
+    return `
+      <div class="import-track-wrap">
+        <div class="import-track-line"><div class="import-track-line-fill" style="width:${pct}%;"></div></div>
+        <div class="import-track-row">${stages}</div>
+      </div>`;
+  }
+
+  async function initComprasFiltros() {
+    const [empresas, proveedores] = await Promise.all([ensureEmpresasCache(), ensureProveedoresCache()]);
+    fillSelect(document.getElementById('sol-filtro-empresa'), empresas, 'Todas');
+    fillSelect(document.getElementById('sol-filtro-proveedor'), proveedores, 'Todos');
+    const etapaSel = document.getElementById('sol-filtro-etapa');
+    if (!etapaSel.dataset.filled) {
+      etapaSel.innerHTML = '<option value="">Todas</option>' + ETAPAS_COMPRA.map(e => `<option value="${e.key}">${e.label}</option>`).join('');
+      etapaSel.dataset.filled = '1';
+    }
+  }
+
+  async function loadComprasView() {
+    await initComprasFiltros();
+    const cont = document.getElementById('lista-solicitudes');
+    cont.innerHTML = `<div class="loading-text">Cargando…</div>`;
+
+    const empresaId = document.getElementById('sol-filtro-empresa').value;
+    const proveedorId = document.getElementById('sol-filtro-proveedor').value;
+    const etapa = document.getElementById('sol-filtro-etapa').value;
+
+    let query = supabaseClient.from('solicitudes_compra')
+      .select('*, empresas(nombre), proveedores(nombre), importaciones(descripcion)')
+      .order('fecha', { ascending: false });
+    if (empresaId) query = query.eq('empresa_compradora_id', empresaId);
+    if (proveedorId) query = query.eq('proveedor_id', proveedorId);
+    if (etapa) query = query.eq('etapa', etapa);
+
+    const { data, error } = await query;
+    if (error || !data) { cont.innerHTML = `<div class="placeholder-view">No se pudieron cargar las solicitudes.</div>`; return; }
+
+    solicitudesById = {};
+    data.forEach(s => solicitudesById[s.id] = s);
+
+    const { data: importacionesList } = await supabaseClient.from('importaciones').select('id, descripcion').order('fecha_pedido', { ascending: false }).limit(100);
+
+    cont.innerHTML = data.length ? data.map(sol => `
+      <div class="import-card">
+        <div class="import-card-head">
+          <div>
+            <h3>${sol.referencia}</h3>
+            <div class="meta">
+              <strong>${sol.empresas?.nombre ?? '—'}</strong> · ${sol.proveedores?.nombre ?? 'proveedor a definir'}
+              ${sol.condicion_pago ? ` · ${sol.condicion_pago}` : ''}${sol.incoterm ? ` · ${sol.incoterm}` : ''}
+              · ${formatFecha(sol.fecha)}
+            </div>
+          </div>
+          <div class="import-card-actions">
+            <button class="action-btn" data-editar-solicitud="${sol.id}">Editar</button>
+          </div>
+        </div>
+        ${renderCompraTrack(sol)}
+
+        <span class="docs-toggle" data-lineas-toggle="${sol.id}">📦 Ver líneas</span>
+        <div class="docs-panel" id="lineas-panel-${sol.id}">
+          <div class="docs-list" id="lineas-list-${sol.id}"><div class="loading-text">Cargando…</div></div>
+          <div class="pline-add-row">
+            <div class="pline-autocomplete">
+              <input type="text" class="pline-input" id="pline-input-${sol.id}" placeholder="Buscar producto por código o descripción…">
+              <input type="hidden" id="pline-id-${sol.id}">
+              <div class="pline-list" id="pline-list-${sol.id}"></div>
+            </div>
+            <input type="number" min="0.01" step="0.01" placeholder="Cantidad" id="pline-cantidad-${sol.id}">
+            <input type="number" min="0" step="0.01" placeholder="Precio unit." id="pline-precio-${sol.id}">
+            <button type="button" class="btn-secondary" data-agregar-linea="${sol.id}">+ Agregar</button>
+          </div>
+        </div>
+
+        <div style="margin-top:0.9rem; padding-top:0.9rem; border-top:1px solid var(--gray-border); display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;">
+          ${sol.importacion_id
+            ? `<span style="font-size:0.83rem; color:var(--gray-mid);">🚢 Vinculada a: <strong>${sol.importaciones?.descripcion ?? ''}</strong></span>
+               <button class="action-btn" data-ver-importacion>Ir a Importaciones</button>`
+            : `<select id="sol-vincular-${sol.id}" class="search-input" style="width:220px;">
+                 <option value="">— Vincular a una importación —</option>
+                 ${(importacionesList ?? []).map(i => `<option value="${i.id}">${i.descripcion}</option>`).join('')}
+               </select>
+               <button class="btn-secondary" data-vincular-importacion="${sol.id}">Vincular</button>`}
+        </div>
+      </div>`).join('') : `<div class="placeholder-view"><h2>Sin solicitudes</h2>Creá la primera con "+ Nueva solicitud".</div>`;
+
+    cont.querySelectorAll('[data-editar-solicitud]').forEach(btn => {
+      btn.addEventListener('click', () => openSolicitudModal(solicitudesById[btn.dataset.editarSolicitud]));
+    });
+    cont.querySelectorAll('.import-stage[data-solicitud]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const { error: errUpd } = await supabaseClient.from('solicitudes_compra').update({ etapa: btn.dataset.etapa }).eq('id', btn.dataset.solicitud);
+        if (errUpd) { showToast('No se pudo actualizar la etapa', 'error'); return; }
+        showToast('Etapa actualizada');
+        loadComprasView();
+      });
+    });
+    cont.querySelectorAll('[data-lineas-toggle]').forEach(el => {
+      el.addEventListener('click', () => {
+        const panel = document.getElementById('lineas-panel-' + el.dataset.lineasToggle);
+        panel.classList.toggle('open');
+        if (panel.classList.contains('open')) {
+          loadLineasSolicitud(el.dataset.lineasToggle);
+          setupPlineAutocomplete(el.dataset.lineasToggle);
+        }
+      });
+    });
+    cont.querySelectorAll('[data-agregar-linea]').forEach(btn => {
+      btn.addEventListener('click', () => agregarLineaSolicitud(btn.dataset.agregarLinea));
+    });
+    cont.querySelectorAll('[data-vincular-importacion]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const sel = document.getElementById('sol-vincular-' + btn.dataset.vincularImportacion);
+        if (!sel.value) { showToast('Elegí una importación primero', 'error'); return; }
+        const { error: errUpd } = await supabaseClient.from('solicitudes_compra').update({ importacion_id: sel.value }).eq('id', btn.dataset.vincularImportacion);
+        if (errUpd) { showToast('No se pudo vincular', 'error'); return; }
+        showToast('Importación vinculada');
+        loadComprasView();
+      });
+    });
+    cont.querySelectorAll('[data-ver-importacion]').forEach(btn => {
+      btn.addEventListener('click', () => document.querySelector('.nav-item[data-view="importaciones"]').click());
+    });
+  }
+
+  document.getElementById('sol-filtro-empresa').addEventListener('change', loadComprasView);
+  document.getElementById('sol-filtro-proveedor').addEventListener('change', loadComprasView);
+  document.getElementById('sol-filtro-etapa').addEventListener('change', loadComprasView);
+  document.getElementById('sol-filtros-limpiar').addEventListener('click', () => {
+    document.getElementById('sol-filtro-empresa').value = '';
+    document.getElementById('sol-filtro-proveedor').value = '';
+    document.getElementById('sol-filtro-etapa').value = '';
+    loadComprasView();
+  });
+
+  async function loadLineasSolicitud(solicitudId) {
+    const listEl = document.getElementById('lineas-list-' + solicitudId);
+    listEl.innerHTML = `<div class="loading-text">Cargando…</div>`;
+    const { data, error } = await supabaseClient.from('solicitud_lineas')
+      .select('*, productos(codigo, descripcion, medida, marca)')
+      .eq('solicitud_id', solicitudId);
+    if (error || !data) { listEl.innerHTML = `<div class="loading-text">No se pudieron cargar las líneas.</div>`; return; }
+
+    listEl.innerHTML = data.length ? `
+      <table>
+        <thead><tr><th>Producto</th><th>Medida</th><th>Cantidad</th><th>Precio unit.</th></tr></thead>
+        <tbody>
+          ${data.map(l => `
+            <tr>
+              <td>${l.productos?.codigo ? l.productos.codigo + ' — ' : ''}${l.productos?.descripcion ?? '—'}</td>
+              <td>${l.productos?.medida ?? '—'}</td>
+              <td>${l.cantidad}</td>
+              <td>${l.precio_unitario != null ? formatUSD(l.precio_unitario) : '—'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>` : `<div style="font-size:0.82rem; color:var(--gray-mid);">Todavía no hay líneas cargadas.</div>`;
+  }
+
+  function setupPlineAutocomplete(solicitudId) {
+    const input = document.getElementById('pline-input-' + solicitudId);
+    const hiddenId = document.getElementById('pline-id-' + solicitudId);
+    const list = document.getElementById('pline-list-' + solicitudId);
+    if (input.dataset.bound) return;
+    input.dataset.bound = '1';
+
+    const search = debounce(async (term) => {
+      hiddenId.value = '';
+      let query = supabaseClient.from('productos').select('id, codigo, descripcion, medida, marca').limit(8);
+      query = term ? query.or(`descripcion.ilike.%${term}%,codigo.ilike.%${term}%`) : query.order('descripcion');
+      const { data, error } = await query;
+      if (error || !data || !data.length) {
+        list.innerHTML = `<div class="pline-item" style="color:var(--gray-mid);">Sin resultados</div>`;
+        list.classList.add('open');
+        return;
+      }
+      list.innerHTML = data.map(p => `
+        <div class="pline-item" data-id="${p.id}" data-label="${(p.codigo ? p.codigo + ' — ' : '') + p.descripcion}">
+          ${p.codigo ? `${p.codigo} — ` : ''}${p.descripcion}
+          <div class="pline-sub">${p.medida ?? ''} ${p.marca ?? ''}</div>
+        </div>`).join('');
+      list.classList.add('open');
+    }, 200);
+
+    input.addEventListener('input', () => search(input.value.trim()));
+    input.addEventListener('focus', () => { if (!hiddenId.value) search(input.value.trim()); });
+    document.addEventListener('click', (e) => { if (!input.closest('.pline-autocomplete').contains(e.target)) list.classList.remove('open'); });
+    list.addEventListener('click', (e) => {
+      const item = e.target.closest('.pline-item');
+      if (!item || !item.dataset.id) return;
+      hiddenId.value = item.dataset.id;
+      input.value = item.dataset.label;
+      list.classList.remove('open');
+    });
+  }
+
+  async function agregarLineaSolicitud(solicitudId) {
+    const productoId = document.getElementById('pline-id-' + solicitudId).value;
+    const cantidad = Number(document.getElementById('pline-cantidad-' + solicitudId).value);
+    const precioInput = document.getElementById('pline-precio-' + solicitudId).value;
+
+    if (!productoId) { showToast('Elegí un producto de la lista', 'error'); return; }
+    if (!cantidad || cantidad <= 0) { showToast('Ingresá una cantidad válida', 'error'); return; }
+
+    const { error } = await supabaseClient.from('solicitud_lineas').insert([{
+      solicitud_id: solicitudId, producto_id: productoId, cantidad,
+      precio_unitario: precioInput ? Number(precioInput) : null,
+    }]);
+    if (error) { showToast('No se pudo agregar la línea', 'error'); return; }
+
+    document.getElementById('pline-input-' + solicitudId).value = '';
+    document.getElementById('pline-id-' + solicitudId).value = '';
+    document.getElementById('pline-cantidad-' + solicitudId).value = '';
+    document.getElementById('pline-precio-' + solicitudId).value = '';
+    showToast('Línea agregada');
+    loadLineasSolicitud(solicitudId);
+  }
+
+  async function openSolicitudModal(sol) {
+    const [empresas, proveedores] = await Promise.all([ensureEmpresasCache(), ensureProveedoresCache()]);
+    fillSelect(document.getElementById('msol-empresa'), empresas, null);
+    fillSelect(document.getElementById('msol-proveedor'), proveedores, '— A definir —');
+    document.getElementById('msol-form').reset();
+    document.getElementById('msol-error').style.display = 'none';
+
+    if (sol) {
+      document.getElementById('msol-title').textContent = `Editar ${sol.referencia}`;
+      document.getElementById('msol-id').value = sol.id;
+      document.getElementById('msol-empresa').value = sol.empresa_compradora_id;
+      document.getElementById('msol-proveedor').value = sol.proveedor_id ?? '';
+      document.getElementById('msol-condicion-pago').value = sol.condicion_pago ?? '';
+      document.getElementById('msol-puerto-destino').value = sol.puerto_destino ?? '';
+      document.getElementById('msol-incoterm').value = sol.incoterm ?? '';
+      document.getElementById('msol-fecha').value = sol.fecha ?? todayStr();
+      document.getElementById('msol-notas').value = sol.notas ?? '';
+      document.getElementById('msol-delete-btn').style.display = 'inline-block';
+    } else {
+      document.getElementById('msol-title').textContent = 'Nueva solicitud';
+      document.getElementById('msol-id').value = '';
+      document.getElementById('msol-fecha').value = todayStr();
+      document.getElementById('msol-delete-btn').style.display = 'none';
+    }
+    openModal('modal-solicitud');
+  }
+
+  document.getElementById('btn-nueva-solicitud').addEventListener('click', () => openSolicitudModal(null));
+
+  document.getElementById('msol-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('msol-id').value;
+    const errEl = document.getElementById('msol-error');
+    errEl.style.display = 'none';
+
+    const basePayload = {
+      empresa_compradora_id: document.getElementById('msol-empresa').value,
+      proveedor_id: document.getElementById('msol-proveedor').value || null,
+      condicion_pago: document.getElementById('msol-condicion-pago').value.trim() || null,
+      puerto_destino: document.getElementById('msol-puerto-destino').value.trim() || null,
+      incoterm: document.getElementById('msol-incoterm').value.trim() || null,
+      fecha: document.getElementById('msol-fecha').value,
+      notas: document.getElementById('msol-notas').value.trim() || null,
+    };
+
+    if (id) {
+      const { error } = await supabaseClient.from('solicitudes_compra').update(basePayload).eq('id', id);
+      if (error) { errEl.textContent = 'No se pudo actualizar la solicitud.'; errEl.style.display = 'block'; return; }
+      closeModal('modal-solicitud');
+      showToast('Solicitud actualizada');
+      loadComprasView();
+      return;
+    }
+
+    const { data: refData, error: errRef } = await supabaseClient.rpc('fn_next_referencia_solicitud', { p_empresa_id: basePayload.empresa_compradora_id });
+    if (errRef || !refData || !refData.length) { errEl.textContent = 'No se pudo generar la referencia.'; errEl.style.display = 'block'; return; }
+
+    const { error } = await supabaseClient.from('solicitudes_compra').insert([{
+      ...basePayload, referencia: refData[0].referencia, numero_solicitud: refData[0].numero, etapa: 'solicitud',
+    }]);
+    if (error) { errEl.textContent = 'No se pudo crear la solicitud.'; errEl.style.display = 'block'; return; }
+
+    closeModal('modal-solicitud');
+    showToast(`Solicitud ${refData[0].referencia} creada`);
+    loadComprasView();
+  });
+
+  document.getElementById('msol-delete-btn').addEventListener('click', async () => {
+    const id = document.getElementById('msol-id').value;
+    if (!id) return;
+    if (!confirm('¿Eliminar esta solicitud? También se eliminan sus líneas. Esta acción no se puede deshacer.')) return;
+    const { error } = await supabaseClient.from('solicitudes_compra').delete().eq('id', id);
+    if (error) { showToast('No se pudo eliminar la solicitud', 'error'); return; }
+    closeModal('modal-solicitud');
+    showToast('Solicitud eliminada');
+    loadComprasView();
+  });
 
   // ==================================================
   // IMPORTACIONES
