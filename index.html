@@ -3,161 +3,103 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Total Neumáticos — Gestión</title>
+<title>Portal de Importaciones — Grupo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root {
-    --black: #0A0A0A;
+    --ink: #0B1220;
     --white: #FFFFFF;
-    --red: #E4372A;
-    --red-dark: #B82B20;
-    --gray-light: #F7F7F7;
-    --gray-mid: #8A8A8A;
-    --gray-border: #E8E8E8;
-    --font-display: 'Archivo Black', sans-serif;
+    --blue: #2563EB;
+    --blue-dark: #1D4ED8;
+    --gray-light: #F1F5F9;
+    --gray-mid: #64748B;
+    --gray-border: #E2E8F0;
+    --green: #16A34A;
+    --green-bg: #ECFDF3;
+    --amber: #D97706;
+    --amber-bg: #FFFBEB;
+    --red: #DC2626;
+    --red-bg: #FEF2F2;
+    --font-display: 'Sora', sans-serif;
     --font-body: 'Inter', sans-serif;
     --ease: cubic-bezier(0.16, 1, 0.3, 1);
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  html, body {
-    height: 100%;
-    font-family: var(--font-body);
-    color: var(--black);
-    background: var(--white);
-    -webkit-font-smoothing: antialiased;
-  }
-
+  html, body { height: 100%; font-family: var(--font-body); color: var(--ink); background: var(--white); -webkit-font-smoothing: antialiased; }
   button, input, select { font-family: inherit; }
   a { color: inherit; }
-
-  :focus-visible {
-    outline: 2px solid var(--red);
-    outline-offset: 2px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      transition-duration: 0.01ms !important;
-    }
-  }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
 
   /* ============ LOGIN ============ */
-
   #login-screen { display: flex; min-height: 100vh; }
-
   .login-brand {
-    flex: 1 1 46%;
-    background: var(--black);
-    color: var(--white);
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 4rem;
-    overflow: hidden;
+    flex: 1 1 46%; background: var(--ink); color: var(--white); position: relative;
+    display: flex; flex-direction: column; justify-content: center; padding: 4rem; overflow: hidden;
   }
-
   .login-brand::before {
-    content: '';
-    position: absolute;
-    top: -20%; right: -30%;
-    width: 140%; height: 140%;
-    border: 90px solid var(--red);
-    border-radius: 50%;
-    opacity: 0.12;
+    content: ''; position: absolute; top: -20%; right: -25%; width: 130%; height: 130%;
+    border: 90px solid var(--blue); border-radius: 50%; opacity: 0.10;
   }
-
-  .login-brand::after {
-    content: '';
-    position: absolute;
-    bottom: -35%; left: -25%;
-    width: 90%; height: 90%;
-    border: 60px solid var(--white);
-    border-radius: 50%;
-    opacity: 0.04;
-  }
-
   .brand-mark { position: relative; z-index: 1; }
-  .brand-mark .eyebrow { color: var(--red); font-size: 0.95rem; font-weight: 600; letter-spacing: 0.02em; margin-bottom: 0.75rem; }
-  .brand-mark h1 { font-family: var(--font-display); font-size: clamp(2.4rem, 5vw, 3.6rem); line-height: 1.05; letter-spacing: -0.01em; }
-  .brand-mark h1 span { display: block; font-size: 0.4em; font-family: var(--font-body); font-weight: 600; letter-spacing: 0.08em; color: var(--gray-mid); margin-top: 0.6rem; }
-  .brand-mark p { margin-top: 1.75rem; color: rgba(255,255,255,0.65); max-width: 30ch; line-height: 1.6; font-size: 0.95rem; }
+  .brand-mark .eyebrow { color: var(--blue); font-size: 0.9rem; font-weight: 600; letter-spacing: 0.03em; margin-bottom: 0.75rem; }
+  .brand-mark h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2rem, 4.5vw, 3rem); line-height: 1.1; }
+  .brand-mark .empresas { margin-top: 1.75rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .brand-mark .empresas span { color: rgba(255,255,255,0.7); font-size: 0.92rem; }
+  .brand-mark .empresas span::before { content: '— '; color: var(--blue); }
 
   .login-form-panel { flex: 1 1 54%; display: flex; align-items: center; justify-content: center; padding: 2rem; }
   .login-form { width: 100%; max-width: 360px; }
   .login-form h2 { font-size: 1.5rem; margin-bottom: 0.4rem; }
   .login-form .sub { color: var(--gray-mid); font-size: 0.9rem; margin-bottom: 2rem; }
-
   .field { margin-bottom: 1.1rem; }
   .field label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.4rem; }
   .field input, .field select {
-    width: 100%; padding: 0.75rem 0.9rem;
-    border: 1.5px solid var(--gray-border); border-radius: 8px;
-    font-size: 0.95rem; background: var(--white);
-    transition: border-color 0.2s var(--ease);
+    width: 100%; padding: 0.75rem 0.9rem; border: 1.5px solid var(--gray-border); border-radius: 8px;
+    font-size: 0.95rem; background: var(--white); transition: border-color 0.2s var(--ease);
   }
-  .field input:focus, .field select:focus { border-color: var(--red); }
-
+  .field input:focus, .field select:focus { border-color: var(--blue); }
   .btn-primary {
-    padding: 0.85rem; background: var(--red); color: var(--white);
-    border: none; border-radius: 8px; font-weight: 600; font-size: 0.95rem;
-    cursor: pointer; transition: background 0.2s var(--ease), transform 0.15s var(--ease);
+    padding: 0.85rem; background: var(--blue); color: var(--white); border: none; border-radius: 8px;
+    font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: background 0.2s var(--ease), transform 0.15s var(--ease);
   }
-  .btn-primary:hover { background: var(--red-dark); }
+  .btn-primary:hover { background: var(--blue-dark); }
   .btn-primary:active { transform: scale(0.98); }
   .btn-primary:disabled { opacity: 0.6; cursor: default; }
-
   .btn-secondary {
-    padding: 0.6rem 1rem; background: var(--white); color: var(--black);
-    border: 1.5px solid var(--gray-border); border-radius: 8px; font-weight: 600;
-    font-size: 0.85rem; cursor: pointer; transition: border-color 0.2s var(--ease);
+    padding: 0.6rem 1rem; background: var(--white); color: var(--ink); border: 1.5px solid var(--gray-border);
+    border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: border-color 0.2s var(--ease);
   }
-  .btn-secondary:hover { border-color: var(--black); }
-
+  .btn-secondary:hover { border-color: var(--ink); }
   .login-btn { width: 100%; margin-top: 0.5rem; }
-
   .login-error, .form-error {
-    display: none; background: #FDEDEC; color: var(--red-dark);
-    padding: 0.7rem 0.9rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1.1rem;
+    display: none; background: var(--red-bg); color: var(--red); padding: 0.7rem 0.9rem; border-radius: 8px;
+    font-size: 0.85rem; margin-bottom: 1.1rem;
   }
+  @media (max-width: 820px) { #login-screen { flex-direction: column; } .login-brand { padding: 2.5rem; flex: 0 0 auto; min-height: 220px; } }
 
-  @media (max-width: 820px) {
-    #login-screen { flex-direction: column; }
-    .login-brand { padding: 2.5rem; flex: 0 0 auto; min-height: 220px; }
-  }
-
-  /* ============ APP / DASHBOARD ============ */
-
+  /* ============ APP ============ */
   #app-screen { display: none; min-height: 100vh; background: var(--gray-light); }
   .layout { display: flex; min-height: 100vh; }
-
   .sidebar {
-    width: 240px; background: var(--black); color: var(--white);
-    display: flex; flex-direction: column; padding: 1.75rem 1.2rem; flex-shrink: 0;
-    transform: translateX(-100%); transition: transform 0.6s var(--ease);
+    width: 240px; background: var(--ink); color: var(--white); display: flex; flex-direction: column;
+    padding: 1.75rem 1.2rem; flex-shrink: 0; transform: translateX(-100%); transition: transform 0.6s var(--ease);
   }
   .layout.revealed .sidebar { transform: translateX(0); }
-
-  .sidebar-logo { font-family: var(--font-display); font-size: 1.15rem; letter-spacing: -0.01em; padding: 0 0.5rem; margin-bottom: 0.15rem; }
-  .sidebar-logo span { color: var(--red); }
-  .sidebar-sub { padding: 0 0.5rem; font-size: 0.72rem; color: var(--gray-mid); letter-spacing: 0.06em; margin-bottom: 2.25rem; }
-
+  .sidebar-logo { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; padding: 0 0.5rem; margin-bottom: 0.15rem; }
+  .sidebar-logo span { color: var(--blue); }
+  .sidebar-sub { padding: 0 0.5rem; font-size: 0.7rem; color: var(--gray-mid); letter-spacing: 0.05em; margin-bottom: 2.25rem; }
   .nav-item {
-    display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.9rem;
-    border-radius: 8px; font-size: 0.9rem; font-weight: 500; color: rgba(255,255,255,0.65);
-    cursor: pointer; transition: background 0.2s var(--ease), color 0.2s var(--ease); margin-bottom: 0.15rem;
+    display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.9rem; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 500; color: rgba(255,255,255,0.65); cursor: pointer;
+    transition: background 0.2s var(--ease), color 0.2s var(--ease); margin-bottom: 0.15rem;
   }
   .nav-item:hover { background: rgba(255,255,255,0.06); color: var(--white); }
-  .nav-item.active { background: var(--red); color: var(--white); }
+  .nav-item.active { background: var(--blue); color: var(--white); }
   .nav-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-
   .sidebar-footer { margin-top: auto; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); }
   .user-email { font-size: 0.78rem; color: var(--gray-mid); padding: 0 0.5rem; margin-bottom: 0.6rem; word-break: break-all; }
   .logout-btn {
@@ -165,31 +107,30 @@
     padding: 0.6rem; border-radius: 8px; font-size: 0.85rem; cursor: pointer;
     transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
   }
-  .logout-btn:hover { background: var(--red); border-color: var(--red); }
+  .logout-btn:hover { background: var(--blue); border-color: var(--blue); }
 
   .main {
     flex: 1; padding: 2.25rem 2.75rem; opacity: 0; transform: translateY(10px);
     transition: opacity 0.6s var(--ease) 0.15s, transform 0.6s var(--ease) 0.15s; min-width: 0;
   }
   .layout.revealed .main { opacity: 1; transform: translateY(0); }
-
   .main-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1.75rem; flex-wrap: wrap; gap: 0.5rem; }
-  .main-header h1 { font-family: var(--font-display); font-size: 1.5rem; }
+  .main-header h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.45rem; }
   .main-header p { color: var(--gray-mid); font-size: 0.88rem; }
 
   .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2.25rem; }
   .kpi-card { background: var(--white); border: 1px solid var(--gray-border); border-radius: 12px; padding: 1.4rem; }
   .kpi-card .label { font-size: 0.8rem; color: var(--gray-mid); font-weight: 500; margin-bottom: 0.5rem; }
-  .kpi-card .value { font-family: var(--font-display); font-size: 1.9rem; line-height: 1; }
-  .kpi-card.accent .value { color: var(--red); }
+  .kpi-card .value { font-family: var(--font-display); font-weight: 700; font-size: 1.8rem; line-height: 1; }
+  .kpi-card.accent .value { color: var(--blue); }
+  .kpi-card.warn .value { color: var(--red); }
 
   .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
   @media (max-width: 980px) { .panels { grid-template-columns: 1fr; } .main { padding: 1.75rem 1.5rem; } }
-
   .panel { background: var(--white); border: 1px solid var(--gray-border); border-radius: 12px; overflow: hidden; }
   .panel-head { padding: 1.1rem 1.3rem; border-bottom: 1px solid var(--gray-border); display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
   .panel-head h3 { font-size: 0.95rem; font-weight: 700; }
-  .panel-head .count { font-size: 0.78rem; color: var(--white); background: var(--red); padding: 0.15rem 0.55rem; border-radius: 999px; font-weight: 600; }
+  .panel-head .count { font-size: 0.78rem; color: var(--white); background: var(--blue); padding: 0.15rem 0.55rem; border-radius: 999px; font-weight: 600; }
 
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
   thead th { text-align: left; padding: 0.6rem 1.3rem; color: var(--gray-mid); font-weight: 600; font-size: 0.75rem; border-bottom: 1px solid var(--gray-border); white-space: nowrap; }
@@ -197,21 +138,19 @@
   tbody tr:last-child td { border-bottom: none; }
   tbody tr:hover { background: var(--gray-light); }
   .empty-row td { color: var(--gray-mid); padding: 1.3rem; text-align: center; }
-  .badge-red { color: var(--red-dark); font-weight: 600; }
   .loading-text { color: var(--gray-mid); font-size: 0.85rem; padding: 1.3rem; }
 
   .view { display: none; }
   .view.active { display: block; }
 
-  /* ---- Full-width panel (Productos/Proveedores/Clientes/Compras/Ventas) ---- */
   .panel-wide { background: var(--white); border: 1px solid var(--gray-border); border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; }
   .panel-wide-head { padding: 1.1rem 1.3rem; border-bottom: 1px solid var(--gray-border); display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
   .panel-wide-head h3 { font-size: 0.95rem; font-weight: 700; }
   .search-input {
     padding: 0.55rem 0.8rem; border: 1.5px solid var(--gray-border); border-radius: 8px;
-    font-size: 0.85rem; width: 240px; max-width: 100%;
+    font-size: 0.85rem; width: 200px; max-width: 100%;
   }
-  .search-input:focus { border-color: var(--red); outline: none; }
+  .search-input:focus { border-color: var(--blue); outline: none; }
   .table-scroll { overflow-x: auto; }
 
   .action-btn {
@@ -219,135 +158,79 @@
     background: var(--white); font-size: 0.78rem; font-weight: 600; cursor: pointer;
     transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
   }
-  .action-btn:hover { border-color: var(--red); color: var(--red-dark); }
+  .action-btn:hover { border-color: var(--blue); color: var(--blue-dark); }
 
-  /* ---- Formularios de alta (compras / ventas, inline) ---- */
+  .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+  .badge.pendiente { background: var(--amber-bg); color: var(--amber); }
+  .badge.parcial { background: var(--amber-bg); color: var(--amber); }
+  .badge.pagado { background: var(--green-bg); color: var(--green); }
+  .badge.cancelado { background: var(--gray-light); color: var(--gray-mid); }
+
   .form-card { background: var(--white); border: 1px solid var(--gray-border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
   .form-card h3 { font-size: 0.95rem; margin-bottom: 1.1rem; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-  @media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } }
-
-  .line-items { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.9rem; }
-  .line-item-row {
-    display: grid; grid-template-columns: 1fr 90px 120px 110px 36px; gap: 0.6rem; align-items: start;
-  }
-  @media (max-width: 700px) { .line-item-row { grid-template-columns: 1fr; } }
-
-  .line-items-header {
-    display: grid; grid-template-columns: 1fr 90px 120px 110px 36px; gap: 0.6rem;
-    font-size: 0.72rem; font-weight: 600; color: var(--gray-mid); margin-bottom: 0.4rem; padding: 0 0.1rem;
-  }
-  @media (max-width: 700px) { .line-items-header { display: none; } }
-
-  .line-subtotal {
-    padding: 0.6rem 0.7rem; font-size: 0.88rem; font-weight: 600; text-align: right;
-    color: var(--black); white-space: nowrap;
-  }
-
-  .line-items-total {
-    display: flex; justify-content: flex-end; align-items: baseline; gap: 0.5rem;
-    padding: 0.75rem 0.1rem 0.25rem; font-size: 0.95rem;
-  }
-  .line-items-total .label { color: var(--gray-mid); font-size: 0.85rem; }
-  .line-items-total .value { font-family: var(--font-display); font-size: 1.15rem; }
-
-  .autocomplete-wrap { position: relative; }
-  .autocomplete-wrap input[type="text"] {
-    width: 100%; padding: 0.6rem 0.8rem; border: 1.5px solid var(--gray-border); border-radius: 8px; font-size: 0.88rem;
-  }
-  .autocomplete-wrap input[type="text"]:focus { border-color: var(--red); outline: none; }
-  .autocomplete-list {
-    display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-    background: var(--white); border: 1px solid var(--gray-border); border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.08); z-index: 20; max-height: 220px; overflow-y: auto;
-  }
-  .autocomplete-list.open { display: block; }
-  .autocomplete-item { padding: 0.6rem 0.8rem; font-size: 0.85rem; cursor: pointer; }
-  .autocomplete-item:hover { background: var(--gray-light); }
-  .autocomplete-item .ac-sku { color: var(--gray-mid); font-size: 0.78rem; }
-  .autocomplete-empty { padding: 0.6rem 0.8rem; font-size: 0.82rem; color: var(--gray-mid); }
-
-  .line-item-row input[type="number"] {
-    width: 100%; padding: 0.6rem 0.7rem; border: 1.5px solid var(--gray-border); border-radius: 8px; font-size: 0.88rem;
-  }
-  .line-item-row input[type="number"]:focus { border-color: var(--red); outline: none; }
-
-  .line-remove-btn {
-    width: 36px; height: 36px; border-radius: 8px; border: 1.5px solid var(--gray-border);
-    background: var(--white); color: var(--gray-mid); font-size: 1rem; cursor: pointer;
-  }
-  .line-remove-btn:hover { border-color: var(--red); color: var(--red-dark); }
-
-  .stock-warning { font-size: 0.75rem; color: var(--red-dark); margin-top: 0.25rem; }
-
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  @media (max-width: 720px) { .form-row, .form-row-3 { grid-template-columns: 1fr; } }
   .form-actions { display: flex; gap: 0.75rem; align-items: center; margin-top: 1rem; }
 
-  /* ---- Modal ---- */
-  .modal-overlay {
-    display: none; position: fixed; inset: 0; background: rgba(10,10,10,0.5);
-    align-items: center; justify-content: center; z-index: 100; padding: 1.5rem;
-  }
-  .modal-overlay.active { display: flex; }
-  .modal {
-    background: var(--white); border-radius: 14px; width: 100%; max-width: 440px;
-    max-height: 90vh; overflow-y: auto; padding: 1.75rem;
-    animation: modal-in 0.25s var(--ease);
-  }
-  @keyframes modal-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-  .modal h3 { font-size: 1.1rem; margin-bottom: 1.2rem; }
-  .modal-close-row { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.4rem; }
-
-  /* ---- Toast ---- */
-  .toast {
-    position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--black); color: var(--white);
-    padding: 0.85rem 1.2rem; border-radius: 8px; font-size: 0.88rem; z-index: 200;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-    animation: toast-in 0.3s var(--ease);
-  }
-  .toast.error { background: var(--red-dark); }
-  @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-  .placeholder-view { background: var(--white); border: 1px solid var(--gray-border); border-radius: 12px; padding: 3rem 2rem; text-align: center; color: var(--gray-mid); }
-
-  /* ---- Importaciones ---- */
   .import-card { background: var(--white); border: 1px solid var(--gray-border); border-radius: 12px; padding: 1.5rem 1.5rem 1.25rem; margin-bottom: 1.25rem; }
   .import-card-head { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.25rem; }
   .import-card-head h3 { font-size: 1rem; margin-bottom: 0.2rem; }
   .import-card-head .meta { font-size: 0.8rem; color: var(--gray-mid); }
-  .import-card-head .meta strong { color: var(--black); font-weight: 600; }
-  .import-card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+  .import-card-head .meta strong { color: var(--ink); font-weight: 600; }
+  .import-card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; }
 
-  .import-track-wrap {
-    position: relative; margin-top: 2.6rem; padding: 0.5rem 0 0.25rem;
-    background-image: radial-gradient(circle, rgba(59,130,246,0.14) 1.2px, transparent 1.6px);
-    background-size: 14px 14px;
-    border-radius: 10px;
-  }
-  .import-track-line {
-    position: absolute; left: 6%; right: 6%; top: 20px; height: 4px;
-    background: var(--gray-border); border-radius: 999px; overflow: hidden;
-  }
-  .import-track-line-fill { height: 100%; background: linear-gradient(90deg, var(--red), var(--red-dark)); transition: width 0.4s var(--ease); }
-
+  .import-track-wrap { position: relative; margin-top: 2.4rem; padding: 0.5rem 0 0.25rem; }
+  .import-track-line { position: absolute; left: 4%; right: 4%; top: 18px; height: 4px; background: var(--gray-border); border-radius: 999px; overflow: hidden; }
+  .import-track-line-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--blue-dark)); transition: width 0.4s var(--ease); }
   .import-track-row { position: relative; display: flex; justify-content: space-between; padding: 0 4%; }
   .import-stage {
-    display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
-    background: none; border: none; cursor: pointer; flex: 1; position: relative; padding-top: 4px;
+    display: flex; flex-direction: column; align-items: center; gap: 0.4rem; background: none; border: none;
+    cursor: pointer; flex: 1; position: relative; padding-top: 4px;
   }
   .import-stage .dot {
-    width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-size: 1rem; background: var(--white); border: 3px solid var(--gray-border);
-    opacity: 0.45; transition: all 0.2s var(--ease);
+    width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 0.95rem; background: var(--white); border: 3px solid var(--gray-border); opacity: 0.45; transition: all 0.2s var(--ease);
   }
   .import-stage:hover .dot { border-color: var(--gray-mid); opacity: 0.8; }
+  .import-stage.done .dot { border-color: var(--blue); opacity: 1; }
+  .import-stage.current .dot { border-color: var(--blue); opacity: 1; box-shadow: 0 0 0 5px rgba(37,99,235,0.14); }
   .import-stage:disabled { cursor: default; }
-  .import-stage:disabled:hover .dot { border-color: inherit; }
-  .import-stage:disabled .dot { cursor: default; }
-  .import-stage.done .dot { border-color: var(--red); opacity: 1; }
-  .import-stage.current .dot { border-color: var(--red); opacity: 1; box-shadow: 0 0 0 5px rgba(228,55,42,0.14); }
-  .import-stage .label { font-size: 0.66rem; color: var(--gray-mid); text-align: center; max-width: 76px; line-height: 1.2; }
-  .import-stage.current .label { color: var(--red-dark); font-weight: 700; }
+  .import-stage .label { font-size: 0.64rem; color: var(--gray-mid); text-align: center; max-width: 76px; line-height: 1.2; }
+  .import-stage.current .label { color: var(--blue-dark); font-weight: 700; }
 
+  .docs-toggle { font-size: 0.8rem; color: var(--blue-dark); cursor: pointer; font-weight: 600; margin-top: 1rem; display: inline-block; }
+  .docs-panel { display: none; margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--gray-border); }
+  .docs-panel.open { display: block; }
+  .docs-list { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.8rem; }
+  .doc-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.83rem; padding: 0.5rem 0.7rem; background: var(--gray-light); border-radius: 8px; }
+  .doc-item .doc-name { font-weight: 500; }
+  .doc-item .doc-tipo { color: var(--gray-mid); font-size: 0.75rem; margin-left: 0.4rem; }
+  .doc-upload-row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+  .doc-upload-row select, .doc-upload-row input[type="file"] {
+    padding: 0.5rem 0.7rem; border: 1.5px solid var(--gray-border); border-radius: 8px; font-size: 0.83rem;
+  }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(11,18,32,0.5); align-items: center; justify-content: center;
+    z-index: 100; padding: 1.5rem;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal { background: var(--white); border-radius: 14px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; padding: 1.75rem; animation: modal-in 0.25s var(--ease); }
+  @keyframes modal-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .modal h3 { font-size: 1.1rem; margin-bottom: 1.2rem; }
+  .modal-close-row { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.4rem; }
+
+  .toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--ink); color: var(--white); padding: 0.85rem 1.2rem;
+    border-radius: 8px; font-size: 0.88rem; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.2); animation: toast-in 0.3s var(--ease);
+  }
+  .toast.error { background: var(--red); }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .placeholder-view { background: var(--white); border: 1px solid var(--gray-border); border-radius: 12px; padding: 3rem 2rem; text-align: center; color: var(--gray-mid); }
+  .saldo-pos { color: var(--red); font-weight: 700; }
+  .saldo-neg { color: var(--green); font-weight: 700; }
 </style>
 </head>
 <body>
@@ -356,9 +239,13 @@
 <div id="login-screen">
   <div class="login-brand">
     <div class="brand-mark">
-      <div class="eyebrow">Panel de gestión</div>
-      <h1>TOTAL<span>NEUMÁTICOS · COMPRAS &amp; STOCK</span></h1>
-      <p>Seguimiento de compras, proveedores y stock en un solo lugar.</p>
+      <div class="eyebrow">Portal de seguimiento</div>
+      <h1>Importaciones<br>Intercompañía</h1>
+      <div class="empresas">
+        <span>TOTAL PY (New Unlimited)</span>
+        <span>TOP NEUMATICOS</span>
+        <span>CABAÑAS SRL</span>
+      </div>
     </div>
   </div>
   <div class="login-form-panel">
@@ -366,14 +253,8 @@
       <h2>Iniciar sesión</h2>
       <div class="sub">Ingresá con tu usuario y contraseña.</div>
       <div class="login-error" id="login-error"></div>
-      <div class="field">
-        <label for="email">Email</label>
-        <input type="email" id="email" required autocomplete="username">
-      </div>
-      <div class="field">
-        <label for="password">Contraseña</label>
-        <input type="password" id="password" required autocomplete="current-password">
-      </div>
+      <div class="field"><label for="email">Email</label><input type="email" id="email" required autocomplete="username"></div>
+      <div class="field"><label for="password">Contraseña</label><input type="password" id="password" required autocomplete="current-password"></div>
       <button type="submit" class="btn-primary login-btn" id="login-btn">Ingresar</button>
     </form>
   </div>
@@ -383,16 +264,15 @@
 <div id="app-screen">
   <div class="layout" id="layout">
     <aside class="sidebar">
-      <div class="sidebar-logo">TOTAL<span>·</span></div>
-      <div class="sidebar-sub">NEUMÁTICOS</div>
+      <div class="sidebar-logo">Portal<span>·</span>Imp</div>
+      <div class="sidebar-sub">PY · TOP · CABAÑAS</div>
 
       <div class="nav-item active" data-view="dashboard"><span class="nav-dot"></span>Dashboard</div>
-      <div class="nav-item" data-view="productos"><span class="nav-dot"></span>Productos</div>
-      <div class="nav-item" data-view="compras"><span class="nav-dot"></span>Compras</div>
       <div class="nav-item" data-view="importaciones"><span class="nav-dot"></span>Importaciones</div>
-      <div class="nav-item" data-view="ventas"><span class="nav-dot"></span>Ventas</div>
+      <div class="nav-item" data-view="transferencias"><span class="nav-dot"></span>Transferencias</div>
+      <div class="nav-item" data-view="pagos"><span class="nav-dot"></span>Pagos</div>
+      <div class="nav-item" data-view="saldos"><span class="nav-dot"></span>Saldos</div>
       <div class="nav-item" data-view="proveedores"><span class="nav-dot"></span>Proveedores</div>
-      <div class="nav-item" data-view="clientes"><span class="nav-dot"></span>Clientes</div>
 
       <div class="sidebar-footer">
         <div class="user-email" id="user-email"></div>
@@ -404,140 +284,28 @@
 
       <!-- ===================== DASHBOARD ===================== -->
       <div class="view active" id="view-dashboard">
-        <div class="main-header"><div><h1>Dashboard</h1><p>Estado general de compras y stock</p></div></div>
+        <div class="main-header"><div><h1>Dashboard</h1><p>Estado general de importaciones y saldos intercompañía</p></div></div>
 
         <div class="kpi-grid">
-          <div class="kpi-card"><div class="label">Productos en catálogo</div><div class="value" id="kpi-productos">—</div></div>
-          <div class="kpi-card accent"><div class="label">Stock bajo</div><div class="value" id="kpi-stock-bajo">—</div></div>
-          <div class="kpi-card accent"><div class="label">Compras pendientes</div><div class="value" id="kpi-compras-pendientes">—</div></div>
-          <div class="kpi-card"><div class="label">Valorización de stock</div><div class="value" id="kpi-valorizacion">—</div></div>
+          <div class="kpi-card"><div class="label">Importaciones activas</div><div class="value" id="kpi-activas">—</div></div>
+          <div class="kpi-card accent"><div class="label">Próxima ETA</div><div class="value" id="kpi-proxima-eta">—</div></div>
+          <div class="kpi-card warn"><div class="label">Saldo total pendiente</div><div class="value" id="kpi-saldo-total">—</div></div>
+          <div class="kpi-card"><div class="label">Transferencias sin saldar</div><div class="value" id="kpi-transf-pendientes">—</div></div>
         </div>
 
         <div class="panels">
           <div class="panel">
-            <div class="panel-head"><h3>Stock bajo</h3><span class="count" id="count-stock-bajo">0</span></div>
+            <div class="panel-head"><h3>Importaciones activas</h3><span class="count" id="count-activas">0</span></div>
             <table>
-              <thead><tr><th>SKU</th><th>Producto</th><th>Stock</th><th>Mínimo</th></tr></thead>
-              <tbody id="tabla-stock-bajo"><tr><td colspan="4" class="loading-text">Cargando…</td></tr></tbody>
+              <thead><tr><th>Empresa</th><th>Proveedor</th><th>Etapa</th><th>ETA</th></tr></thead>
+              <tbody id="tabla-dash-importaciones"><tr><td colspan="4" class="loading-text">Cargando…</td></tr></tbody>
             </table>
           </div>
           <div class="panel">
-            <div class="panel-head"><h3>Compras pendientes</h3><span class="count" id="count-compras-pendientes">0</span></div>
+            <div class="panel-head"><h3>Saldos entre empresas</h3><span class="count" id="count-saldos">0</span></div>
             <table>
-              <thead><tr><th>Proveedor</th><th>Emisión</th><th>Llegada est.</th><th>Estado</th></tr></thead>
-              <tbody id="tabla-compras-pendientes"><tr><td colspan="4" class="loading-text">Cargando…</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===================== PRODUCTOS ===================== -->
-      <div class="view" id="view-productos">
-        <div class="main-header">
-          <div><h1>Productos</h1><p>Catálogo — mostrando los primeros 50 resultados</p></div>
-          <div style="display:flex; gap:0.6rem;">
-            <button class="btn-secondary" id="btn-importar-productos">Importar Excel</button>
-            <button class="btn-primary" id="btn-nuevo-producto">+ Nuevo producto</button>
-          </div>
-        </div>
-        <div class="panel-wide">
-          <div class="panel-wide-head" style="align-items:flex-end;">
-            <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:flex-end;">
-              <div>
-                <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Buscar</label>
-                <input type="text" class="search-input" id="prod-search" placeholder="Buscar por SKU o nombre…">
-              </div>
-              <div>
-                <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Categoría</label>
-                <select id="prod-filtro-categoria" class="search-input" style="width:150px;"><option value="">Todas</option></select>
-              </div>
-              <div>
-                <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Marca</label>
-                <select id="prod-filtro-marca" class="search-input" style="width:170px;"><option value="">Todas</option></select>
-              </div>
-              <div>
-                <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Proveedor</label>
-                <select id="prod-filtro-proveedor" class="search-input" style="width:170px;"><option value="">Todos</option></select>
-              </div>
-              <button type="button" class="btn-secondary" id="prod-filtros-limpiar">Limpiar filtros</button>
-            </div>
-          </div>
-          <div class="table-scroll">
-            <table>
-              <thead><tr><th>SKU</th><th>Nombre</th><th>Marca</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Costo</th><th>Precio</th><th>Proveedor</th><th>Acciones</th></tr></thead>
-              <tbody id="tabla-productos"><tr><td colspan="10" class="loading-text">Cargando…</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===================== COMPRAS ===================== -->
-      <div class="view" id="view-compras">
-        <div class="main-header"><div><h1>Compras</h1><p>Órdenes de compra y recepciones</p></div></div>
-
-        <form class="form-card" id="oc-form">
-          <h3>Nueva orden de compra</h3>
-          <div class="form-row">
-            <div class="field">
-              <label for="oc-proveedor">Proveedor</label>
-              <select id="oc-proveedor" required></select>
-            </div>
-            <div class="field">
-              <label for="oc-fecha-emision">Fecha de emisión</label>
-              <input type="date" id="oc-fecha-emision" required>
-            </div>
-          </div>
-          <div class="field" style="max-width: 260px; margin-bottom: 1.1rem;">
-            <label for="oc-fecha-llegada">Fecha estimada de llegada</label>
-            <input type="date" id="oc-fecha-llegada">
-          </div>
-
-          <div class="field" style="margin-bottom: 1.1rem;">
-            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-              <input type="checkbox" id="oc-es-importacion" style="width:auto;">
-              🚢 Es una importación (agregar a seguimiento de Importaciones)
-            </label>
-          </div>
-
-          <div id="oc-importacion-campos" style="display:none; margin-bottom: 1.1rem;">
-            <div class="form-row">
-              <div class="field"><label>Origen</label><input type="text" id="oc-imp-origen" placeholder="Ej: Qingdao, China"></div>
-              <div class="field"><label>Destino</label><input type="text" id="oc-imp-destino" placeholder="Ej: Depósito Posadas"></div>
-            </div>
-            <div class="form-row">
-              <div class="field"><label>Naviera</label><input type="text" id="oc-imp-naviera"></div>
-              <div class="field"><label>Nº contenedor / tracking</label><input type="text" id="oc-imp-tracking"></div>
-            </div>
-          </div>
-
-          <div class="line-items-header">
-            <span>Producto</span><span>Cantidad</span><span>Costo unit.</span><span>Subtotal</span><span></span>
-          </div>
-          <div class="line-items" id="oc-lineas"></div>
-          <button type="button" class="btn-secondary" id="oc-add-line">+ Agregar línea</button>
-          <div class="line-items-total"><span class="label">Total de la orden</span><span class="value" id="oc-total">$ 0</span></div>
-
-          <div class="form-actions">
-            <button type="submit" class="btn-primary" id="oc-submit">Crear orden de compra</button>
-          </div>
-        </form>
-
-        <div class="panel-wide">
-          <div class="panel-wide-head"><h3>Órdenes de compra</h3></div>
-          <div class="table-scroll">
-            <table>
-              <thead><tr><th></th><th>Nº orden</th><th>Proveedor</th><th>Emisión</th><th>Llegada est.</th><th>Estado</th><th>Acciones</th></tr></thead>
-              <tbody id="tabla-compras"><tr><td colspan="7" class="loading-text">Cargando…</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="panel-wide">
-          <div class="panel-wide-head"><h3>Pendientes de ingreso</h3><span class="count" id="count-pendientes-ingreso">0</span></div>
-          <div class="table-scroll">
-            <table>
-              <thead><tr><th>Nº orden</th><th>Proveedor</th><th>Producto</th><th>Pedido</th><th>Recibido</th><th>Pendiente</th><th>Llegada est.</th></tr></thead>
-              <tbody id="tabla-pendientes-ingreso"><tr><td colspan="7" class="loading-text">Cargando…</td></tr></tbody>
+              <thead><tr><th>Debe</th><th>A favor de</th><th>Pendiente</th></tr></thead>
+              <tbody id="tabla-dash-saldos"><tr><td colspan="3" class="loading-text">Cargando…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -546,47 +314,109 @@
       <!-- ===================== IMPORTACIONES ===================== -->
       <div class="view" id="view-importaciones">
         <div class="main-header">
-          <div><h1>Importaciones</h1><p>Seguimiento de contenedores, de origen a destino</p></div>
+          <div><h1>Importaciones</h1><p>Seguimiento de contenedores, de fábrica a destino</p></div>
           <button class="btn-primary" id="btn-nueva-importacion">+ Nueva importación</button>
         </div>
+
+        <div class="panel-wide-head" style="background:var(--white); border:1px solid var(--gray-border); border-radius:12px; margin-bottom:1.25rem;">
+          <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:flex-end;">
+            <div>
+              <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Empresa</label>
+              <select id="imp-filtro-empresa" class="search-input"><option value="">Todas</option></select>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Proveedor</label>
+              <select id="imp-filtro-proveedor" class="search-input"><option value="">Todos</option></select>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Etapa</label>
+              <select id="imp-filtro-etapa" class="search-input"><option value="">Todas</option></select>
+            </div>
+            <button type="button" class="btn-secondary" id="imp-filtros-limpiar">Limpiar filtros</button>
+          </div>
+        </div>
+
         <div id="lista-importaciones"><div class="loading-text">Cargando…</div></div>
       </div>
 
-      <!-- ===================== VENTAS ===================== -->
-      <div class="view" id="view-ventas">
-        <div class="main-header"><div><h1>Ventas</h1><p>Registro de ventas</p></div></div>
+      <!-- ===================== TRANSFERENCIAS ===================== -->
+      <div class="view" id="view-transferencias">
+        <div class="main-header"><div><h1>Transferencias</h1><p>Ventas intercompañía (ej: TOTAL PY → TOP / CABAÑAS)</p></div></div>
 
-        <form class="form-card" id="v-form">
-          <h3>Nueva venta</h3>
+        <form class="form-card" id="tr-form">
+          <h3>Nueva transferencia</h3>
+          <div class="form-error" id="tr-error"></div>
           <div class="form-row">
-            <div class="field">
-              <label for="v-cliente">Cliente</label>
-              <select id="v-cliente"><option value="">— Sin cliente —</option></select>
-            </div>
-            <div class="field">
-              <label for="v-fecha">Fecha</label>
-              <input type="date" id="v-fecha" required>
-            </div>
+            <div class="field"><label>Empresa vendedora</label><select id="tr-vendedora" required></select></div>
+            <div class="field"><label>Empresa compradora</label><select id="tr-compradora" required></select></div>
           </div>
-
-          <div class="line-items-header">
-            <span>Producto</span><span>Cantidad</span><span>Precio unit.</span><span>Subtotal</span><span></span>
+          <div class="form-row">
+            <div class="field"><label>Monto (USD)</label><input type="number" min="0.01" step="0.01" id="tr-monto" required></div>
+            <div class="field"><label>Fecha</label><input type="date" id="tr-fecha" required></div>
           </div>
-          <div class="line-items" id="v-lineas"></div>
-          <button type="button" class="btn-secondary" id="v-add-line">+ Agregar línea</button>
-          <div class="line-items-total"><span class="label">Total de la venta</span><span class="value" id="v-total">$ 0</span></div>
-
-          <div class="form-actions">
-            <button type="submit" class="btn-primary" id="v-submit">Registrar venta</button>
+          <div class="form-row">
+            <div class="field"><label>Importación vinculada (opcional)</label><select id="tr-importacion"><option value="">— Ninguna —</option></select></div>
+            <div class="field"><label>Descripción</label><input type="text" id="tr-descripcion" placeholder="Ej: Reventa contenedor TBR agosto"></div>
           </div>
+          <div class="form-actions"><button type="submit" class="btn-primary">Registrar transferencia</button></div>
         </form>
 
         <div class="panel-wide">
-          <div class="panel-wide-head"><h3>Ventas recientes</h3></div>
+          <div class="panel-wide-head"><h3>Transferencias</h3></div>
           <div class="table-scroll">
             <table>
-              <thead><tr><th>Cliente</th><th>Fecha</th><th>Total</th></tr></thead>
-              <tbody id="tabla-ventas"><tr><td colspan="3" class="loading-text">Cargando…</td></tr></tbody>
+              <thead><tr><th>Fecha</th><th>Vendedora</th><th>Compradora</th><th>Monto</th><th>Importación</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody id="tabla-transferencias"><tr><td colspan="7" class="loading-text">Cargando…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== PAGOS ===================== -->
+      <div class="view" id="view-pagos">
+        <div class="main-header"><div><h1>Pagos</h1><p>Pagos entre empresas que saldan transferencias</p></div></div>
+
+        <form class="form-card" id="pg-form">
+          <h3>Nuevo pago</h3>
+          <div class="form-error" id="pg-error"></div>
+          <div class="form-row">
+            <div class="field"><label>Empresa que paga</label><select id="pg-paga" required></select></div>
+            <div class="field"><label>Empresa que recibe</label><select id="pg-recibe" required></select></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>Monto (USD)</label><input type="number" min="0.01" step="0.01" id="pg-monto" required></div>
+            <div class="field"><label>Fecha</label><input type="date" id="pg-fecha" required></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>Transferencia vinculada (opcional)</label><select id="pg-transferencia"><option value="">— Ninguna —</option></select></div>
+            <div class="field"><label>Referencia</label><input type="text" id="pg-referencia" placeholder="Ej: Transferencia bancaria #4521"></div>
+          </div>
+          <div class="form-actions"><button type="submit" class="btn-primary">Registrar pago</button></div>
+        </form>
+
+        <div class="panel-wide">
+          <div class="panel-wide-head"><h3>Pagos</h3></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Fecha</th><th>Paga</th><th>Recibe</th><th>Monto</th><th>Referencia</th></tr></thead>
+              <tbody id="tabla-pagos"><tr><td colspan="5" class="loading-text">Cargando…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== SALDOS ===================== -->
+      <div class="view" id="view-saldos">
+        <div class="main-header"><div><h1>Saldos</h1><p>Cobranzas — cuánto le debe cada empresa a cada otra</p></div></div>
+
+        <div class="kpi-grid" id="kpi-saldos-por-empresa"></div>
+
+        <div class="panel-wide">
+          <div class="panel-wide-head"><h3>Detalle de saldos</h3></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Debe</th><th>A favor de</th><th>Facturado</th><th>Pagado</th><th>Pendiente</th></tr></thead>
+              <tbody id="tabla-saldos"><tr><td colspan="5" class="loading-text">Cargando…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -595,30 +425,14 @@
       <!-- ===================== PROVEEDORES ===================== -->
       <div class="view" id="view-proveedores">
         <div class="main-header">
-          <div><h1>Proveedores</h1><p>Listado y condiciones</p></div>
+          <div><h1>Proveedores</h1><p>Fábricas y exportadores externos</p></div>
           <button class="btn-primary" id="btn-nuevo-proveedor">+ Nuevo proveedor</button>
         </div>
         <div class="panel-wide">
           <div class="table-scroll">
             <table>
-              <thead><tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Email</th><th>Cond. pago</th><th>Plazo (días)</th></tr></thead>
+              <thead><tr><th>Nombre</th><th>País</th><th>Contacto</th><th>Teléfono</th><th>Email</th><th>Acciones</th></tr></thead>
               <tbody id="tabla-proveedores"><tr><td colspan="6" class="loading-text">Cargando…</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===================== CLIENTES ===================== -->
-      <div class="view" id="view-clientes">
-        <div class="main-header">
-          <div><h1>Clientes</h1><p>Listado de clientes</p></div>
-          <button class="btn-primary" id="btn-nuevo-cliente">+ Nuevo cliente</button>
-        </div>
-        <div class="panel-wide">
-          <div class="table-scroll">
-            <table>
-              <thead><tr><th>Nombre</th><th>Contacto</th></tr></thead>
-              <tbody id="tabla-clientes"><tr><td colspan="2" class="loading-text">Cargando…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -630,36 +444,38 @@
 
 <!-- ===================== MODALES ===================== -->
 
-<div class="modal-overlay" id="modal-producto">
-  <div class="modal">
-    <h3 id="mp-title">Nuevo producto</h3>
-    <div class="form-error" id="mp-error"></div>
-    <form id="mp-form">
-      <input type="hidden" id="mp-id">
+<div class="modal-overlay" id="modal-importacion">
+  <div class="modal" style="max-width: 560px;">
+    <h3 id="mimp-title">Nueva importación</h3>
+    <div class="form-error" id="mimp-error"></div>
+    <form id="mimp-form">
+      <input type="hidden" id="mimp-id">
       <div class="form-row">
-        <div class="field"><label>SKU</label><input type="text" id="mp-sku" required></div>
-        <div class="field"><label>Código de barras</label><input type="text" id="mp-codigo-barras"></div>
+        <div class="field"><label>Empresa compradora</label><select id="mimp-empresa" required></select></div>
+        <div class="field"><label>Proveedor</label><select id="mimp-proveedor" required></select></div>
       </div>
-      <div class="field"><label>Nombre</label><input type="text" id="mp-nombre" required></div>
-      <div class="form-row">
-        <div class="field"><label>Marca</label><input type="text" id="mp-marca" placeholder="Ej: Dunlop"></div>
-        <div class="field"><label>Categoría</label><input type="text" id="mp-categoria" placeholder="Ej: PCR"></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Unidad de medida</label><input type="text" id="mp-unidad" value="unidad"></div>
+      <div class="field"><label>Descripción</label><input type="text" id="mimp-descripcion" placeholder="Ej: Contenedor TBR Evergreen sept." required></div>
+      <div class="form-row-3">
+        <div class="field"><label>Rubro</label><input type="text" id="mimp-rubro" placeholder="PCR/TBR/LTR"></div>
+        <div class="field"><label>Marca</label><input type="text" id="mimp-marca"></div>
+        <div class="field"><label>Nº contenedor</label><input type="text" id="mimp-numero-contenedor"></div>
       </div>
       <div class="form-row">
-        <div class="field"><label>Costo</label><input type="number" step="0.01" min="0" id="mp-costo" value="0"></div>
-        <div class="field"><label>Precio de venta</label><input type="number" step="0.01" min="0" id="mp-precio" value="0"></div>
+        <div class="field"><label>Cantidad contenedores</label><input type="number" min="1" id="mimp-cont-cantidad" value="1"></div>
+        <div class="field"><label>Tipo contenedor</label><input type="text" id="mimp-cont-tipo" placeholder="Ej: 1X40"></div>
       </div>
       <div class="form-row">
-        <div class="field"><label>Stock inicial</label><input type="number" step="0.01" min="0" id="mp-stock" value="0"></div>
-        <div class="field"><label>Stock mínimo</label><input type="number" step="0.01" min="0" id="mp-stock-min" value="0"></div>
+        <div class="field"><label>Monto FOB (USD)</label><input type="number" min="0" step="0.01" id="mimp-monto-fob"></div>
+        <div class="field"><label>Situación de pago</label><input type="text" id="mimp-situacion-pago" placeholder="Ej: Anticipo pagado"></div>
       </div>
-      <div class="field"><label>Proveedor principal</label><select id="mp-proveedor"><option value="">— Sin asignar —</option></select></div>
+      <div class="form-row-3">
+        <div class="field"><label>Fecha pedido</label><input type="date" id="mimp-fecha-pedido" required></div>
+        <div class="field"><label>Fecha est. embarque</label><input type="date" id="mimp-fecha-emb-est"></div>
+        <div class="field"><label>ETA</label><input type="date" id="mimp-fecha-eta"></div>
+      </div>
       <div class="modal-close-row">
-        <button type="button" class="btn-secondary" id="mp-delete-btn" style="display:none; margin-right:auto; border-color:var(--red);">Eliminar producto</button>
-        <button type="button" class="btn-secondary" data-close-modal="modal-producto">Cancelar</button>
+        <button type="button" class="btn-secondary" id="mimp-delete-btn" style="display:none; margin-right:auto; border-color:var(--red); color:var(--red);">Eliminar</button>
+        <button type="button" class="btn-secondary" data-close-modal="modal-importacion">Cancelar</button>
         <button type="submit" class="btn-primary">Guardar</button>
       </div>
     </form>
@@ -668,20 +484,21 @@
 
 <div class="modal-overlay" id="modal-proveedor">
   <div class="modal">
-    <h3>Nuevo proveedor</h3>
+    <h3 id="mv-title">Nuevo proveedor</h3>
     <div class="form-error" id="mv-error"></div>
     <form id="mv-form">
+      <input type="hidden" id="mv-id">
       <div class="field"><label>Nombre</label><input type="text" id="mv-nombre" required></div>
-      <div class="field"><label>Contacto</label><input type="text" id="mv-contacto"></div>
+      <div class="form-row">
+        <div class="field"><label>País</label><input type="text" id="mv-pais"></div>
+        <div class="field"><label>Contacto</label><input type="text" id="mv-contacto"></div>
+      </div>
       <div class="form-row">
         <div class="field"><label>Teléfono</label><input type="text" id="mv-telefono"></div>
         <div class="field"><label>Email</label><input type="email" id="mv-email"></div>
       </div>
-      <div class="form-row">
-        <div class="field"><label>Condiciones de pago</label><input type="text" id="mv-condiciones"></div>
-        <div class="field"><label>Plazo de entrega (días)</label><input type="number" min="0" id="mv-plazo"></div>
-      </div>
       <div class="modal-close-row">
+        <button type="button" class="btn-secondary" id="mv-delete-btn" style="display:none; margin-right:auto; border-color:var(--red); color:var(--red);">Eliminar</button>
         <button type="button" class="btn-secondary" data-close-modal="modal-proveedor">Cancelar</button>
         <button type="submit" class="btn-primary">Guardar</button>
       </div>
@@ -689,133 +506,15 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-cliente">
-  <div class="modal">
-    <h3>Nuevo cliente</h3>
-    <div class="form-error" id="mc-error"></div>
-    <form id="mc-form">
-      <div class="field"><label>Nombre</label><input type="text" id="mc-nombre" required></div>
-      <div class="field"><label>Contacto</label><input type="text" id="mc-contacto"></div>
-      <div class="modal-close-row">
-        <button type="button" class="btn-secondary" data-close-modal="modal-cliente">Cancelar</button>
-        <button type="submit" class="btn-primary">Guardar</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div class="modal-overlay" id="modal-importacion">
-  <div class="modal">
-    <h3 id="mimp-title">Nueva importación</h3>
-    <div class="form-error" id="mimp-error"></div>
-    <form id="mimp-form">
-      <input type="hidden" id="mimp-id">
-      <div class="field"><label>Proveedor</label><select id="mimp-proveedor" required></select></div>
-      <div class="field"><label>Descripción</label><input type="text" id="mimp-descripcion" placeholder="Ej: Contenedor Hankook agosto" required></div>
-      <div class="form-row">
-        <div class="field"><label>Origen</label><input type="text" id="mimp-origen" placeholder="Ej: Qingdao, China"></div>
-        <div class="field"><label>Destino</label><input type="text" id="mimp-destino" placeholder="Ej: Depósito Posadas"></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Naviera</label><input type="text" id="mimp-naviera"></div>
-        <div class="field"><label>Nº contenedor / tracking</label><input type="text" id="mimp-tracking"></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Fecha de pedido</label><input type="date" id="mimp-fecha-pedido" required></div>
-        <div class="field"><label>Fecha estimada de llegada</label><input type="date" id="mimp-fecha-llegada"></div>
-      </div>
-      <div class="modal-close-row">
-        <button type="button" class="btn-secondary" id="mimp-delete-btn" style="display:none; margin-right:auto; border-color:var(--red);">Eliminar</button>
-        <button type="button" class="btn-secondary" data-close-modal="modal-importacion">Cancelar</button>
-        <button type="submit" class="btn-primary">Guardar</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div class="modal-overlay" id="modal-recibir">
-  <div class="modal" style="max-width: 560px;">
-    <h3 id="mr-title">Registrar recepción</h3>
-    <div class="form-error" id="mr-error"></div>
-    <div id="mr-lineas"></div>
-    <div class="modal-close-row">
-      <button type="button" class="btn-secondary" data-close-modal="modal-recibir">Cancelar</button>
-      <button type="button" class="btn-primary" id="mr-submit">Confirmar recepción</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="modal-import">
-  <div class="modal" style="max-width: 640px;">
-    <h3>Importar productos desde Excel</h3>
-    <div class="form-error" id="mi-error"></div>
-
-    <div id="mi-step-file">
-      <div class="field">
-        <label>Archivo (.xlsx)</label>
-        <input type="file" id="mi-file" accept=".xlsx,.xls">
-      </div>
-      <p style="font-size:0.8rem; color:var(--gray-mid); margin-top:0.5rem;">
-        Se lee la primera hoja del archivo, usando la primera fila como encabezados.
-      </p>
-    </div>
-
-    <div id="mi-step-mapping" style="display:none;">
-      <p style="font-size:0.85rem; color:var(--gray-mid); margin-bottom:1rem;">
-        <strong id="mi-row-count">0</strong> filas detectadas. Indicá qué columna de tu archivo corresponde a cada campo.
-      </p>
-      <div class="form-row">
-        <div class="field"><label>SKU *</label><select id="mi-map-sku"></select></div>
-        <div class="field"><label>Nombre *</label><select id="mi-map-nombre"></select></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Marca</label><select id="mi-map-marca"></select></div>
-        <div class="field"><label>Categoría</label><select id="mi-map-categoria"></select></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Unidad de medida</label><select id="mi-map-unidad"></select></div>
-        <div class="field"><label>Costo</label><select id="mi-map-costo"></select></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Precio de venta</label><select id="mi-map-precio"></select></div>
-        <div class="field"><label>Stock actual</label><select id="mi-map-stock"></select></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Stock mínimo</label><select id="mi-map-stock-min"></select></div>
-        <div class="field"><label>Proveedor (por nombre, opcional)</label><select id="mi-map-proveedor"></select></div>
-      </div>
-
-      <div class="panel-wide" style="margin-top:1rem;">
-        <div class="panel-wide-head"><h3>Vista previa (primeras 5 filas)</h3></div>
-        <div class="table-scroll"><table><thead id="mi-preview-head"></thead><tbody id="mi-preview-body"></tbody></table></div>
-      </div>
-
-      <p style="font-size:0.8rem; color:var(--gray-mid); margin-top:0.9rem;">
-        Los productos se identifican por SKU: si ya existe, se actualiza; si no existe, se crea.
-      </p>
-    </div>
-
-    <div id="mi-step-progress" style="display:none;">
-      <p id="mi-progress-text" style="font-size:0.9rem;">Importando…</p>
-    </div>
-
-    <div class="modal-close-row">
-      <button type="button" class="btn-secondary" data-close-modal="modal-import">Cancelar</button>
-      <button type="button" class="btn-primary" id="mi-analyze-btn">Analizar archivo</button>
-      <button type="button" class="btn-primary" id="mi-import-btn" style="display:none;">Importar productos</button>
-    </div>
-  </div>
-</div>
-
 <script>
   // ---------- Configuración Supabase ----------
-  const SUPABASE_URL = 'https://stnpcddipapodbfvmhex.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_rq5Na-UhGXlaElVbSWKlCg_yfpqQvPG';
+  const SUPABASE_URL = 'https://nuzslpitipikjafrlyby.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_AbjqJS4glhts1z6YxBiFgw_Y94DGM45';
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const DOCS_BUCKET = 'importaciones-docs';
 
   const todayStr = () => new Date().toISOString().slice(0, 10);
 
-  // ---------- Toast ----------
   function showToast(msg, type = 'success') {
     const t = document.createElement('div');
     t.className = 'toast' + (type === 'error' ? ' error' : '');
@@ -824,20 +523,29 @@
     setTimeout(() => t.remove(), 3000);
   }
 
-  // ---------- Formato ----------
-  function formatARS(n) {
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n || 0);
+  function formatUSD(n) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0);
   }
   function formatFecha(f) {
     if (!f) return '—';
     return new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
-  const estadoLabel = { pendiente: 'Pendiente', parcial: 'Parcial', recibida: 'Recibida', cancelada: 'Cancelada' };
-
   function debounce(fn, delay) {
     let timer;
     return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
   }
+
+  const ETAPAS_IMPORTACION = [
+    { key: 'en_produccion', label: 'En producción', icon: '🏭' },
+    { key: 'produccion_terminada', label: 'Producción terminada', icon: '✅' },
+    { key: 'embarcado', label: 'Embarcado', icon: '🚢' },
+    { key: 'en_transito', label: 'En tránsito', icon: '🌊' },
+    { key: 'deposito_fiscal', label: 'Depósito fiscal', icon: '🏬' },
+    { key: 'finalizado', label: 'Finalizado', icon: '🏁' },
+  ];
+  const etapaLabel = Object.fromEntries(ETAPAS_IMPORTACION.map(e => [e.key, e.label]));
+
+  const estadoLabel = { pendiente: 'Pendiente', parcial: 'Parcial', pagado: 'Pagado', cancelado: 'Cancelado' };
 
   // ---------- Login / sesión ----------
   const loginScreen = document.getElementById('login-screen');
@@ -858,8 +566,9 @@
     appScreen.style.display = 'block';
     document.getElementById('user-email').textContent = userEmail || '';
     requestAnimationFrame(() => requestAnimationFrame(() => layout.classList.add('revealed')));
-    document.getElementById('oc-fecha-emision').value = todayStr();
-    document.getElementById('v-fecha').value = todayStr();
+    document.getElementById('mimp-fecha-pedido').value = todayStr();
+    document.getElementById('tr-fecha').value = todayStr();
+    document.getElementById('pg-fecha').value = todayStr();
     loadDashboard();
   }
 
@@ -889,12 +598,11 @@
   // ---------- Navegación ----------
   const viewLoaders = {
     dashboard: loadDashboard,
-    productos: () => initProductosFiltros().then(loadProductosView),
-    proveedores: loadProveedoresView,
-    clientes: loadClientesView,
-    compras: loadComprasView,
     importaciones: loadImportacionesView,
-    ventas: loadVentasView,
+    transferencias: loadTransferenciasView,
+    pagos: loadPagosView,
+    saldos: loadSaldosView,
+    proveedores: loadProveedoresView,
   };
 
   document.querySelectorAll('.nav-item').forEach(item => {
@@ -907,937 +615,124 @@
     });
   });
 
-  // ---------- Modales genéricos ----------
   function openModal(id) { document.getElementById(id).classList.add('active'); }
   function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-  document.querySelectorAll('[data-close-modal]').forEach(btn => {
-    btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
-  });
-  document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('active'); });
-  });
+  document.querySelectorAll('[data-close-modal]').forEach(btn => btn.addEventListener('click', () => closeModal(btn.dataset.closeModal)));
+  document.querySelectorAll('.modal-overlay').forEach(overlay => overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('active'); }));
 
-  // ==================================================
-  // DASHBOARD
-  // ==================================================
-  async function loadDashboard() {
-    const { data: productos, error: errProductos } = await supabaseClient
-      .from('productos').select('id, stock_actual, costo_ultimo');
-
-    if (!errProductos && productos) {
-      document.getElementById('kpi-productos').textContent = productos.length;
-      const valorizacion = productos.reduce((acc, p) => acc + (Number(p.stock_actual) * Number(p.costo_ultimo)), 0);
-      document.getElementById('kpi-valorizacion').textContent = formatARS(valorizacion);
-    }
-
-    const { data: stockBajo, error: errStockBajo } = await supabaseClient
-      .from('vista_stock_bajo').select('*').order('stock_actual', { ascending: true });
-
-    const tablaStockBajo = document.getElementById('tabla-stock-bajo');
-    if (!errStockBajo && stockBajo) {
-      document.getElementById('kpi-stock-bajo').textContent = stockBajo.length;
-      document.getElementById('count-stock-bajo').textContent = stockBajo.length;
-      tablaStockBajo.innerHTML = stockBajo.length
-        ? stockBajo.map(p => `<tr><td>${p.sku ?? '—'}</td><td>${p.nombre ?? '—'}</td><td class="badge-red">${p.stock_actual}</td><td>${p.stock_minimo}</td></tr>`).join('')
-        : `<tr class="empty-row"><td colspan="4">Sin productos con stock bajo.</td></tr>`;
-    } else {
-      tablaStockBajo.innerHTML = `<tr class="empty-row"><td colspan="4">No se pudo cargar el stock.</td></tr>`;
-    }
-
-    const { data: comprasPendientes, error: errCompras } = await supabaseClient
-      .from('vista_compras_pendientes').select('*').order('fecha_estimada_llegada', { ascending: true });
-
-    const tablaCompras = document.getElementById('tabla-compras-pendientes');
-    if (!errCompras && comprasPendientes) {
-      document.getElementById('kpi-compras-pendientes').textContent = comprasPendientes.length;
-      document.getElementById('count-compras-pendientes').textContent = comprasPendientes.length;
-      tablaCompras.innerHTML = comprasPendientes.length
-        ? comprasPendientes.map(c => `<tr><td>${c.proveedor ?? '—'}</td><td>${formatFecha(c.fecha_emision)}</td><td>${formatFecha(c.fecha_estimada_llegada)}</td><td>${estadoLabel[c.estado] ?? c.estado}</td></tr>`).join('')
-        : `<tr class="empty-row"><td colspan="4">No hay compras pendientes.</td></tr>`;
-    } else {
-      tablaCompras.innerHTML = `<tr class="empty-row"><td colspan="4">No se pudieron cargar las compras.</td></tr>`;
-    }
+  function fillSelect(selectEl, items, placeholder) {
+    const current = selectEl.value;
+    selectEl.innerHTML = (placeholder ? `<option value="">${placeholder}</option>` : '') + items.map(i => `<option value="${i.id}">${i.nombre}</option>`).join('');
+    if (items.some(i => i.id === current)) selectEl.value = current;
   }
 
   // ==================================================
-  // CACHES (proveedores / clientes) para selects
+  // CACHES
   // ==================================================
+  let empresasCache = null;
   let proveedoresCache = null;
-  let clientesCache = null;
 
+  async function ensureEmpresasCache(force = false) {
+    if (empresasCache && !force) return empresasCache;
+    const { data, error } = await supabaseClient.from('empresas').select('id, nombre, alias').order('nombre');
+    empresasCache = error ? [] : data;
+    return empresasCache;
+  }
   async function ensureProveedoresCache(force = false) {
     if (proveedoresCache && !force) return proveedoresCache;
     const { data, error } = await supabaseClient.from('proveedores').select('id, nombre').order('nombre');
     proveedoresCache = error ? [] : data;
     return proveedoresCache;
   }
-  async function ensureClientesCache(force = false) {
-    if (clientesCache && !force) return clientesCache;
-    const { data, error } = await supabaseClient.from('clientes').select('id, nombre').order('nombre');
-    clientesCache = error ? [] : data;
-    return clientesCache;
-  }
-
-  let categoriasCache = null;
-  let marcasCache = null;
-
-  async function ensureCategoriasCache(force = false) {
-    if (categoriasCache && !force) return categoriasCache;
-    const { data, error } = await supabaseClient.from('vista_categorias_productos').select('categoria');
-    categoriasCache = error ? [] : data.map(r => r.categoria);
-    return categoriasCache;
-  }
-  async function ensureMarcasCache(force = false) {
-    if (marcasCache && !force) return marcasCache;
-    const { data, error } = await supabaseClient.from('vista_marcas_productos').select('marca');
-    marcasCache = error ? [] : data.map(r => r.marca);
-    return marcasCache;
-  }
-
-  function fillSimpleSelect(selectEl, values, placeholder) {
-    const current = selectEl.value;
-    selectEl.innerHTML = `<option value="">${placeholder}</option>` + values.map(v => `<option value="${v}">${v}</option>`).join('');
-    if (values.includes(current)) selectEl.value = current;
-  }
-
-  function fillSelect(selectEl, items, placeholder) {
-    selectEl.innerHTML = (placeholder ? `<option value="">${placeholder}</option>` : '') +
-      items.map(i => `<option value="${i.id}">${i.nombre}</option>`).join('');
-  }
 
   // ==================================================
-  // PRODUCTOS
+  // DASHBOARD
   // ==================================================
-  let productosById = {};
-
-  async function loadProductosView() {
-    const tbody = document.getElementById('tabla-productos');
-    tbody.innerHTML = `<tr><td colspan="10" class="loading-text">Cargando…</td></tr>`;
-
-    const term = document.getElementById('prod-search').value.trim();
-    const categoria = document.getElementById('prod-filtro-categoria').value;
-    const marca = document.getElementById('prod-filtro-marca').value;
-    const proveedorId = document.getElementById('prod-filtro-proveedor').value;
-
-    let query = supabaseClient.from('productos')
-      .select('id, sku, codigo_barras, nombre, marca, categoria, unidad_medida, costo_ultimo, precio_venta, stock_actual, stock_minimo, proveedor_principal_id, proveedores(nombre)')
-      .order('nombre').limit(50);
-
-    if (term) query = query.or(`nombre.ilike.%${term}%,sku.ilike.%${term}%`);
-    if (categoria) query = query.eq('categoria', categoria);
-    if (marca) query = query.eq('marca', marca);
-    if (proveedorId) query = query.eq('proveedor_principal_id', proveedorId);
-
-    const { data, error } = await query;
-    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="10">No se pudo cargar el catálogo.</td></tr>`; return; }
-
-    productosById = {};
-    data.forEach(p => productosById[p.id] = p);
-
-    tbody.innerHTML = data.length ? data.map(p => `
-      <tr>
-        <td>${p.sku}</td>
-        <td>${p.nombre}</td>
-        <td>${p.marca ?? '—'}</td>
-        <td>${p.categoria ?? '—'}</td>
-        <td class="${Number(p.stock_actual) <= Number(p.stock_minimo) ? 'badge-red' : ''}">${p.stock_actual}</td>
-        <td>${p.stock_minimo}</td>
-        <td>${formatARS(p.costo_ultimo)}</td>
-        <td>${formatARS(p.precio_venta)}</td>
-        <td>${p.proveedores?.nombre ?? '—'}</td>
-        <td style="white-space:nowrap;"><button class="action-btn" data-editar-producto="${p.id}">Editar</button></td>
-      </tr>`).join('') : `<tr class="empty-row"><td colspan="10">Sin resultados.</td></tr>`;
-
-    tbody.querySelectorAll('[data-editar-producto]').forEach(btn => {
-      btn.addEventListener('click', () => openProductoModal(productosById[btn.dataset.editarProducto]));
-    });
-  }
-
-  async function initProductosFiltros() {
-    const [categorias, marcas, proveedores] = await Promise.all([
-      ensureCategoriasCache(), ensureMarcasCache(), ensureProveedoresCache(),
-    ]);
-    fillSimpleSelect(document.getElementById('prod-filtro-categoria'), categorias, 'Todas');
-    fillSimpleSelect(document.getElementById('prod-filtro-marca'), marcas, 'Todas');
-    fillSelect(document.getElementById('prod-filtro-proveedor'), proveedores, 'Todos');
-  }
-
-  document.getElementById('prod-search').addEventListener('input', debounce(() => loadProductosView(), 300));
-  document.getElementById('prod-filtro-categoria').addEventListener('change', () => loadProductosView());
-  document.getElementById('prod-filtro-marca').addEventListener('change', () => loadProductosView());
-  document.getElementById('prod-filtro-proveedor').addEventListener('change', () => loadProductosView());
-  document.getElementById('prod-filtros-limpiar').addEventListener('click', () => {
-    document.getElementById('prod-search').value = '';
-    document.getElementById('prod-filtro-categoria').value = '';
-    document.getElementById('prod-filtro-marca').value = '';
-    document.getElementById('prod-filtro-proveedor').value = '';
-    loadProductosView();
-  });
-
-  async function openProductoModal(producto) {
-    const proveedores = await ensureProveedoresCache();
-    fillSelect(document.getElementById('mp-proveedor'), proveedores, '— Sin asignar —');
-    document.getElementById('mp-form').reset();
-    document.getElementById('mp-error').style.display = 'none';
-
-    if (producto) {
-      document.getElementById('mp-title').textContent = 'Editar producto';
-      document.getElementById('mp-id').value = producto.id;
-      document.getElementById('mp-sku').value = producto.sku ?? '';
-      document.getElementById('mp-codigo-barras').value = producto.codigo_barras ?? '';
-      document.getElementById('mp-nombre').value = producto.nombre ?? '';
-      document.getElementById('mp-marca').value = producto.marca ?? '';
-      document.getElementById('mp-categoria').value = producto.categoria ?? '';
-      document.getElementById('mp-unidad').value = producto.unidad_medida ?? 'unidad';
-      document.getElementById('mp-costo').value = producto.costo_ultimo ?? 0;
-      document.getElementById('mp-precio').value = producto.precio_venta ?? 0;
-      document.getElementById('mp-stock').value = producto.stock_actual ?? 0;
-      document.getElementById('mp-stock-min').value = producto.stock_minimo ?? 0;
-      document.getElementById('mp-proveedor').value = producto.proveedor_principal_id ?? '';
-      document.getElementById('mp-delete-btn').style.display = 'inline-block';
-    } else {
-      document.getElementById('mp-title').textContent = 'Nuevo producto';
-      document.getElementById('mp-id').value = '';
-      document.getElementById('mp-unidad').value = 'unidad';
-      document.getElementById('mp-costo').value = 0;
-      document.getElementById('mp-precio').value = 0;
-      document.getElementById('mp-stock').value = 0;
-      document.getElementById('mp-stock-min').value = 0;
-      document.getElementById('mp-delete-btn').style.display = 'none';
-    }
-    openModal('modal-producto');
-  }
-
-  document.getElementById('btn-nuevo-producto').addEventListener('click', () => openProductoModal(null));
-
-  document.getElementById('mp-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('mp-id').value;
-    const payload = {
-      sku: document.getElementById('mp-sku').value.trim(),
-      codigo_barras: document.getElementById('mp-codigo-barras').value.trim() || null,
-      nombre: document.getElementById('mp-nombre').value.trim(),
-      marca: document.getElementById('mp-marca').value.trim() || null,
-      categoria: document.getElementById('mp-categoria').value.trim() || null,
-      unidad_medida: document.getElementById('mp-unidad').value.trim() || 'unidad',
-      costo_ultimo: Number(document.getElementById('mp-costo').value) || 0,
-      precio_venta: Number(document.getElementById('mp-precio').value) || 0,
-      stock_actual: Number(document.getElementById('mp-stock').value) || 0,
-      stock_minimo: Number(document.getElementById('mp-stock-min').value) || 0,
-      proveedor_principal_id: document.getElementById('mp-proveedor').value || null,
-    };
-
-    const { error } = id
-      ? await supabaseClient.from('productos').update(payload).eq('id', id)
-      : await supabaseClient.from('productos').insert([payload]);
-
-    const errEl = document.getElementById('mp-error');
-    if (error) {
-      errEl.textContent = error.code === '23505' ? 'Ya existe un producto con ese SKU.' : 'No se pudo guardar el producto.';
-      errEl.style.display = 'block';
-      return;
-    }
-    closeModal('modal-producto');
-    showToast(id ? 'Producto actualizado' : 'Producto creado');
-    await Promise.all([ensureCategoriasCache(true), ensureMarcasCache(true)]);
-    fillSimpleSelect(document.getElementById('prod-filtro-categoria'), categoriasCache, 'Todas');
-    fillSimpleSelect(document.getElementById('prod-filtro-marca'), marcasCache, 'Todas');
-    loadProductosView();
-    loadDashboard();
-  });
-
-  document.getElementById('mp-delete-btn').addEventListener('click', async () => {
-    const id = document.getElementById('mp-id').value;
-    if (!id) return;
-    if (!confirm('¿Eliminar este producto? Esta acción no se puede deshacer.')) return;
-
-    const { error } = await supabaseClient.from('productos').delete().eq('id', id);
-    const errEl = document.getElementById('mp-error');
-    if (error) {
-      errEl.textContent = error.code === '23503'
-        ? 'No se puede eliminar: este producto tiene compras o ventas registradas.'
-        : 'No se pudo eliminar el producto.';
-      errEl.style.display = 'block';
-      return;
-    }
-    closeModal('modal-producto');
-    showToast('Producto eliminado');
-    loadProductosView();
-    loadDashboard();
-  });
-
-  // ==================================================
-  // IMPORTAR PRODUCTOS DESDE EXCEL
-  // ==================================================
-  let miRows = [];
-  const miFieldSelects = {
-    sku: 'mi-map-sku', nombre: 'mi-map-nombre', marca: 'mi-map-marca', categoria: 'mi-map-categoria', unidad: 'mi-map-unidad',
-    costo: 'mi-map-costo', precio: 'mi-map-precio', stock: 'mi-map-stock', stockMin: 'mi-map-stock-min',
-    proveedor: 'mi-map-proveedor',
-  };
-
-  function guessColumn(headers, candidates) {
-    const found = headers.find(h => candidates.some(c => h.toLowerCase().trim() === c));
-    if (found) return found;
-    return headers.find(h => candidates.some(c => h.toLowerCase().includes(c))) || '';
-  }
-
-  document.getElementById('btn-importar-productos').addEventListener('click', () => {
-    document.getElementById('mi-error').style.display = 'none';
-    document.getElementById('mi-file').value = '';
-    document.getElementById('mi-step-file').style.display = 'block';
-    document.getElementById('mi-step-mapping').style.display = 'none';
-    document.getElementById('mi-step-progress').style.display = 'none';
-    document.getElementById('mi-analyze-btn').style.display = 'inline-block';
-    document.getElementById('mi-import-btn').style.display = 'none';
-    openModal('modal-import');
-  });
-
-  document.getElementById('mi-analyze-btn').addEventListener('click', () => {
-    const fileInput = document.getElementById('mi-file');
-    const errEl = document.getElementById('mi-error');
-    errEl.style.display = 'none';
-    const file = fileInput.files[0];
-    if (!file) { errEl.textContent = 'Elegí un archivo primero.'; errEl.style.display = 'block'; return; }
-
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      try {
-        const wb = XLSX.read(evt.target.result, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-        if (!rows.length) { errEl.textContent = 'El archivo no tiene filas de datos.'; errEl.style.display = 'block'; return; }
-
-        miRows = rows;
-        const headers = Object.keys(rows[0]);
-
-        const guesses = {
-          sku: guessColumn(headers, ['sku', 'codigo', 'código']),
-          nombre: guessColumn(headers, ['nombre', 'producto', 'descripcion', 'descripción']),
-          marca: guessColumn(headers, ['marca', 'brand']),
-          categoria: guessColumn(headers, ['categoria', 'categoría', 'rubro']),
-          unidad: guessColumn(headers, ['unidad', 'um']),
-          costo: guessColumn(headers, ['costo', 'compra']),
-          precio: guessColumn(headers, ['precio', 'venta']),
-          stock: guessColumn(headers, ['stock', 'existencia', 'cantidad']),
-          stockMin: guessColumn(headers, ['minimo', 'mínimo', 'stock min']),
-          proveedor: guessColumn(headers, ['proveedor']),
-        };
-
-        Object.entries(miFieldSelects).forEach(([key, selectId]) => {
-          const select = document.getElementById(selectId);
-          const isRequired = key === 'sku' || key === 'nombre';
-          select.innerHTML = (isRequired ? '' : '<option value="">— No importar —</option>') +
-            headers.map(h => `<option value="${h}" ${guesses[key] === h ? 'selected' : ''}>${h}</option>`).join('');
-        });
-
-        // Ensure proveedores cache is ready for name-matching on import
-        await ensureProveedoresCache();
-
-        document.getElementById('mi-row-count').textContent = rows.length;
-        renderMiPreview();
-
-        document.getElementById('mi-step-file').style.display = 'none';
-        document.getElementById('mi-step-mapping').style.display = 'block';
-        document.getElementById('mi-analyze-btn').style.display = 'none';
-        document.getElementById('mi-import-btn').style.display = 'inline-block';
-      } catch (err) {
-        errEl.textContent = 'No se pudo leer el archivo. ¿Es un Excel válido?';
-        errEl.style.display = 'block';
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  });
-
-  function currentMiMapping() {
-    return {
-      sku: document.getElementById('mi-map-sku').value,
-      nombre: document.getElementById('mi-map-nombre').value,
-      marca: document.getElementById('mi-map-marca').value,
-      categoria: document.getElementById('mi-map-categoria').value,
-      unidad: document.getElementById('mi-map-unidad').value,
-      costo: document.getElementById('mi-map-costo').value,
-      precio: document.getElementById('mi-map-precio').value,
-      stock: document.getElementById('mi-map-stock').value,
-      stockMin: document.getElementById('mi-map-stock-min').value,
-      proveedor: document.getElementById('mi-map-proveedor').value,
-    };
-  }
-
-  function renderMiPreview() {
-    const mapping = currentMiMapping();
-    const cols = Object.entries(mapping).filter(([, v]) => v);
-    document.getElementById('mi-preview-head').innerHTML = '<tr>' + cols.map(([k]) => `<th>${k}</th>`).join('') + '</tr>';
-    document.getElementById('mi-preview-body').innerHTML = miRows.slice(0, 5).map(row =>
-      '<tr>' + cols.map(([, col]) => `<td>${row[col] ?? ''}</td>`).join('') + '</tr>'
-    ).join('');
-  }
-
-  Object.values(miFieldSelects).forEach(id => {
-    document.getElementById(id).addEventListener('change', renderMiPreview);
-  });
-
-  document.getElementById('mi-import-btn').addEventListener('click', async () => {
-    const mapping = currentMiMapping();
-    const errEl = document.getElementById('mi-error');
-    errEl.style.display = 'none';
-
-    if (!mapping.sku || !mapping.nombre) {
-      errEl.textContent = 'Tenés que mapear al menos SKU y Nombre.';
-      errEl.style.display = 'block';
-      return;
-    }
-
-    const proveedoresPorNombre = {};
-    (proveedoresCache || []).forEach(p => proveedoresPorNombre[p.nombre.toLowerCase().trim()] = p.id);
-
-    const payload = miRows.map(row => {
-      const sku = String(row[mapping.sku] ?? '').trim();
-      const nombre = String(row[mapping.nombre] ?? '').trim();
-      if (!sku || !nombre) return null;
-      const proveedorNombre = mapping.proveedor ? String(row[mapping.proveedor] ?? '').toLowerCase().trim() : '';
-      return {
-        sku,
-        nombre,
-        marca: mapping.marca ? String(row[mapping.marca] ?? '').trim() || null : null,
-        categoria: mapping.categoria ? String(row[mapping.categoria] ?? '').trim() || null : null,
-        unidad_medida: mapping.unidad ? String(row[mapping.unidad] ?? '').trim() || 'unidad' : 'unidad',
-        costo_ultimo: mapping.costo ? Number(row[mapping.costo]) || 0 : 0,
-        precio_venta: mapping.precio ? Number(row[mapping.precio]) || 0 : 0,
-        stock_actual: mapping.stock ? Number(row[mapping.stock]) || 0 : 0,
-        stock_minimo: mapping.stockMin ? Number(row[mapping.stockMin]) || 0 : 0,
-        proveedor_principal_id: proveedorNombre ? (proveedoresPorNombre[proveedorNombre] || null) : null,
-      };
-    }).filter(Boolean);
-
-    // Deduplicar por SKU (Postgres rechaza un upsert que toque la misma fila dos veces).
-    // Si el archivo trae el mismo SKU repetido, se conserva la última aparición.
-    const dedupMap = new Map();
-    let duplicados = 0;
-    payload.forEach(p => {
-      if (dedupMap.has(p.sku)) duplicados++;
-      dedupMap.set(p.sku, p);
-    });
-    const dedupedPayload = [...dedupMap.values()];
-
-    if (!dedupedPayload.length) {
-      errEl.textContent = 'No se encontraron filas válidas con SKU y Nombre.';
-      errEl.style.display = 'block';
-      return;
-    }
-
-    document.getElementById('mi-step-mapping').style.display = 'none';
-    document.getElementById('mi-step-progress').style.display = 'block';
-    document.getElementById('mi-import-btn').style.display = 'none';
-
-    const chunkSize = 300;
-    let imported = 0;
-    let failed = 0;
-
-    for (let i = 0; i < dedupedPayload.length; i += chunkSize) {
-      const chunk = dedupedPayload.slice(i, i + chunkSize);
-      document.getElementById('mi-progress-text').textContent = `Importando ${Math.min(i + chunkSize, dedupedPayload.length)} / ${dedupedPayload.length}…`;
-      const { error } = await supabaseClient.from('productos').upsert(chunk, { onConflict: 'sku' });
-      if (error) failed += chunk.length; else imported += chunk.length;
-    }
-
-    document.getElementById('mi-progress-text').textContent =
-      (failed ? `Listo con errores: ${imported} importados, ${failed} fallaron. ` : `Importación completa: ${imported} productos. `) +
-      (duplicados ? `(${duplicados} filas con SKU repetido, se usó la última de cada una)` : '');
-
-    showToast(failed ? 'Importación terminada con errores' : 'Importación completa', failed ? 'error' : 'success');
-    await Promise.all([ensureCategoriasCache(true), ensureMarcasCache(true)]);
-    fillSimpleSelect(document.getElementById('prod-filtro-categoria'), categoriasCache, 'Todas');
-    fillSimpleSelect(document.getElementById('prod-filtro-marca'), marcasCache, 'Todas');
-    loadProductosView();
-    loadDashboard();
-
-    setTimeout(() => closeModal('modal-import'), 1600);
-  });
-
-  // ==================================================
-  // PROVEEDORES
-  // ==================================================
-  async function loadProveedoresView() {
-    const tbody = document.getElementById('tabla-proveedores');
-    tbody.innerHTML = `<tr><td colspan="6" class="loading-text">Cargando…</td></tr>`;
-    const { data, error } = await supabaseClient.from('proveedores').select('*').order('nombre');
-    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No se pudo cargar.</td></tr>`; return; }
-    tbody.innerHTML = data.length ? data.map(p => `
-      <tr>
-        <td>${p.nombre}</td><td>${p.contacto ?? '—'}</td><td>${p.telefono ?? '—'}</td>
-        <td>${p.email ?? '—'}</td><td>${p.condiciones_pago ?? '—'}</td><td>${p.plazo_entrega_dias ?? '—'}</td>
-      </tr>`).join('') : `<tr class="empty-row"><td colspan="6">Todavía no cargaste proveedores.</td></tr>`;
-  }
-
-  document.getElementById('btn-nuevo-proveedor').addEventListener('click', () => {
-    document.getElementById('mv-form').reset();
-    document.getElementById('mv-error').style.display = 'none';
-    openModal('modal-proveedor');
-  });
-
-  document.getElementById('mv-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const payload = {
-      nombre: document.getElementById('mv-nombre').value.trim(),
-      contacto: document.getElementById('mv-contacto').value.trim() || null,
-      telefono: document.getElementById('mv-telefono').value.trim() || null,
-      email: document.getElementById('mv-email').value.trim() || null,
-      condiciones_pago: document.getElementById('mv-condiciones').value.trim() || null,
-      plazo_entrega_dias: document.getElementById('mv-plazo').value ? Number(document.getElementById('mv-plazo').value) : null,
-    };
-    const { error } = await supabaseClient.from('proveedores').insert([payload]);
-    if (error) {
-      const errEl = document.getElementById('mv-error');
-      errEl.textContent = 'No se pudo guardar el proveedor.';
-      errEl.style.display = 'block';
-      return;
-    }
-    closeModal('modal-proveedor');
-    showToast('Proveedor creado');
-    await ensureProveedoresCache(true);
-    loadProveedoresView();
-  });
-
-  // ==================================================
-  // CLIENTES
-  // ==================================================
-  async function loadClientesView() {
-    const tbody = document.getElementById('tabla-clientes');
-    tbody.innerHTML = `<tr><td colspan="2" class="loading-text">Cargando…</td></tr>`;
-    const { data, error } = await supabaseClient.from('clientes').select('*').order('nombre');
-    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="2">No se pudo cargar.</td></tr>`; return; }
-    tbody.innerHTML = data.length ? data.map(c => `<tr><td>${c.nombre}</td><td>${c.contacto ?? '—'}</td></tr>`).join('')
-      : `<tr class="empty-row"><td colspan="2">Todavía no cargaste clientes.</td></tr>`;
-  }
-
-  document.getElementById('btn-nuevo-cliente').addEventListener('click', () => {
-    document.getElementById('mc-form').reset();
-    document.getElementById('mc-error').style.display = 'none';
-    openModal('modal-cliente');
-  });
-
-  document.getElementById('mc-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const payload = {
-      nombre: document.getElementById('mc-nombre').value.trim(),
-      contacto: document.getElementById('mc-contacto').value.trim() || null,
-    };
-    const { error } = await supabaseClient.from('clientes').insert([payload]);
-    if (error) {
-      const errEl = document.getElementById('mc-error');
-      errEl.textContent = 'No se pudo guardar el cliente.';
-      errEl.style.display = 'block';
-      return;
-    }
-    closeModal('modal-cliente');
-    showToast('Cliente creado');
-    await ensureClientesCache(true);
-    loadClientesView();
-  });
-
-  // ==================================================
-  // AUTOCOMPLETE DE PRODUCTOS (líneas de compra/venta)
-  // ==================================================
-  function addLineRow(containerEl, { priceLabel, priceSource, totalElId }) {
-    const row = document.createElement('div');
-    row.className = 'line-item-row';
-    row.innerHTML = `
-      <div class="autocomplete-wrap">
-        <input type="text" class="line-producto-input" placeholder="Hacé clic para buscar un producto…">
-        <input type="hidden" class="line-producto-id">
-        <div class="autocomplete-list"></div>
-        <div class="stock-warning" style="display:none;"></div>
-      </div>
-      <input type="number" class="line-cantidad" placeholder="Cantidad" min="0.01" step="0.01">
-      <input type="number" class="line-precio" placeholder="${priceLabel}" min="0" step="0.01">
-      <div class="line-subtotal">$ 0</div>
-      <button type="button" class="line-remove-btn" title="Quitar línea">×</button>
-    `;
-    containerEl.appendChild(row);
-
-    const input = row.querySelector('.line-producto-input');
-    const hiddenId = row.querySelector('.line-producto-id');
-    const list = row.querySelector('.autocomplete-list');
-    const precioInput = row.querySelector('.line-precio');
-    const cantidadInput = row.querySelector('.line-cantidad');
-    const warning = row.querySelector('.stock-warning');
-    let selectedStock = null;
-    let priceTouched = false;
-
-    function recalc() {
-      const cantidad = Number(cantidadInput.value) || 0;
-      const precio = Number(precioInput.value) || 0;
-      row.querySelector('.line-subtotal').textContent = formatARS(cantidad * precio);
-      if (totalElId) {
-        const total = [...containerEl.querySelectorAll('.line-item-row')].reduce((acc, r) => {
-          return acc + (Number(r.querySelector('.line-cantidad').value) || 0) * (Number(r.querySelector('.line-precio').value) || 0);
-        }, 0);
-        const totalEl = document.getElementById(totalElId);
-        if (totalEl) totalEl.textContent = formatARS(total);
-      }
-    }
-
-    precioInput.addEventListener('input', () => { priceTouched = true; recalc(); });
-    cantidadInput.addEventListener('input', recalc);
-
-    // Muestra productos apenas se hace foco (con o sin texto escrito), así el buscador
-    // no se ve "inerte" — antes solo reaccionaba si ya se había tipeado algo.
-    const search = debounce(async (term) => {
-      let query = supabaseClient.from('productos').select('id, sku, nombre, costo_ultimo, precio_venta, stock_actual').limit(8);
-      query = term ? query.or(`nombre.ilike.%${term}%,sku.ilike.%${term}%`) : query.order('nombre');
-      const { data, error } = await query;
-      if (error || !data || !data.length) {
-        list.innerHTML = `<div class="autocomplete-empty">Sin resultados</div>`;
-        list.classList.add('open');
-        return;
-      }
-      list.innerHTML = data.map(p => `
-        <div class="autocomplete-item" data-id="${p.id}" data-costo="${p.costo_ultimo}" data-precio="${p.precio_venta}" data-stock="${p.stock_actual}" data-nombre="${p.nombre.replace(/"/g, '&quot;')}" data-sku="${p.sku}">
-          <div>${p.nombre}</div><div class="ac-sku">${p.sku} · stock: ${p.stock_actual}</div>
-        </div>`).join('');
-      list.classList.add('open');
-    }, 200);
-
-    input.addEventListener('input', () => { hiddenId.value = ''; selectedStock = null; search(input.value.trim()); });
-    input.addEventListener('focus', () => { if (!hiddenId.value) search(input.value.trim()); });
-    document.addEventListener('click', (e) => { if (!row.contains(e.target)) list.classList.remove('open'); });
-
-    list.addEventListener('click', (e) => {
-      const item = e.target.closest('.autocomplete-item');
-      if (!item) return;
-      hiddenId.value = item.dataset.id;
-      input.value = `${item.dataset.sku} — ${item.dataset.nombre}`;
-      selectedStock = Number(item.dataset.stock);
-      if (!priceTouched) precioInput.value = priceSource === 'costo' ? item.dataset.costo : item.dataset.precio;
-      list.classList.remove('open');
-      checkStockWarning();
-      recalc();
-    });
-
-    function checkStockWarning() {
-      if (priceSource === 'precio' && selectedStock !== null && cantidadInput.value && Number(cantidadInput.value) > selectedStock) {
-        warning.textContent = `Stock disponible: ${selectedStock}`;
-        warning.style.display = 'block';
-      } else {
-        warning.style.display = 'none';
-      }
-    }
-    cantidadInput.addEventListener('input', checkStockWarning);
-
-    row.querySelector('.line-remove-btn').addEventListener('click', () => {
-      row.remove();
-      if (totalElId) {
-        const totalEl = document.getElementById(totalElId);
-        if (totalEl) {
-          const total = [...containerEl.querySelectorAll('.line-item-row')].reduce((acc, r) =>
-            acc + (Number(r.querySelector('.line-cantidad').value) || 0) * (Number(r.querySelector('.line-precio').value) || 0), 0);
-          totalEl.textContent = formatARS(total);
-        }
-      }
-    });
-
-    return row;
-  }
-
-  function collectLines(containerEl) {
-    const rows = [...containerEl.querySelectorAll('.line-item-row')];
-    return rows.map(row => ({
-      producto_id: row.querySelector('.line-producto-id').value,
-      cantidad: Number(row.querySelector('.line-cantidad').value),
-      precio: Number(row.querySelector('.line-precio').value),
-    })).filter(l => l.producto_id && l.cantidad > 0);
-  }
-
-  // ==================================================
-  // COMPRAS
-  // ==================================================
-  const ocLineasEl = document.getElementById('oc-lineas');
-  document.getElementById('oc-add-line').addEventListener('click', () => addLineRow(ocLineasEl, { priceLabel: 'Costo unit.', priceSource: 'costo', totalElId: 'oc-total' }));
-
-  document.getElementById('oc-es-importacion').addEventListener('change', (e) => {
-    document.getElementById('oc-importacion-campos').style.display = e.target.checked ? 'block' : 'none';
-  });
-
-  async function loadComprasView() {
-    const proveedores = await ensureProveedoresCache();
-    fillSelect(document.getElementById('oc-proveedor'), proveedores, null);
-    if (!ocLineasEl.children.length) addLineRow(ocLineasEl, { priceLabel: 'Costo unit.', priceSource: 'costo', totalElId: 'oc-total' });
-
-    const tbody = document.getElementById('tabla-compras');
-    tbody.innerHTML = `<tr><td colspan="7" class="loading-text">Cargando…</td></tr>`;
-    const { data, error } = await supabaseClient.from('ordenes_compra')
-      .select('id, numero_orden, fecha_emision, fecha_estimada_llegada, estado, proveedores(nombre)')
-      .order('fecha_emision', { ascending: false }).limit(50);
-
-    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="7">No se pudo cargar.</td></tr>`; return; }
-
-    const { data: vinculadas } = await supabaseClient.from('importaciones').select('orden_compra_id').not('orden_compra_id', 'is', null);
-    const ordenesConImportacion = new Set((vinculadas ?? []).map(v => v.orden_compra_id));
-
-    tbody.innerHTML = data.length ? data.map(o => `
-      <tr>
-        <td>${ordenesConImportacion.has(o.id) ? '🚢' : ''}</td>
-        <td style="font-weight:600;">${o.numero_orden ?? '—'}</td>
-        <td>${o.proveedores?.nombre ?? '—'}</td>
-        <td>${formatFecha(o.fecha_emision)}</td>
-        <td>${formatFecha(o.fecha_estimada_llegada)}</td>
-        <td>${estadoLabel[o.estado] ?? o.estado}</td>
-        <td style="white-space:nowrap; display:flex; gap:0.4rem;">
-          <button class="action-btn" data-detalle="${o.id}" data-estado="${o.estado}" data-numero="${o.numero_orden ?? ''}">Ver productos</button>
-          ${o.estado === 'pendiente' || o.estado === 'parcial' ? `<button class="action-btn" data-recibir="${o.id}" data-numero="${o.numero_orden ?? ''}">Recibir</button>` : ''}
-        </td>
-      </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Todavía no cargaste órdenes de compra.</td></tr>`;
-
-    tbody.querySelectorAll('[data-recibir]').forEach(btn => {
-      btn.addEventListener('click', () => openRecibirModal(btn.dataset.recibir, true, btn.dataset.numero));
-    });
-    tbody.querySelectorAll('[data-detalle]').forEach(btn => {
-      btn.addEventListener('click', () => openRecibirModal(btn.dataset.detalle, btn.dataset.estado === 'pendiente' || btn.dataset.estado === 'parcial', btn.dataset.numero));
-    });
-
-    const tbodyPendientes = document.getElementById('tabla-pendientes-ingreso');
-    tbodyPendientes.innerHTML = `<tr><td colspan="7" class="loading-text">Cargando…</td></tr>`;
-    const { data: pendientes, error: errPendientes } = await supabaseClient.from('vista_pendientes_ingreso').select('*');
-
-    if (errPendientes || !pendientes) {
-      tbodyPendientes.innerHTML = `<tr class="empty-row"><td colspan="7">No se pudo cargar.</td></tr>`;
-    } else {
-      document.getElementById('count-pendientes-ingreso').textContent = pendientes.length;
-      tbodyPendientes.innerHTML = pendientes.length ? pendientes.map(p => `
-        <tr>
-          <td>${p.numero_orden ?? '—'}</td>
-          <td>${p.proveedor}</td>
-          <td>${p.producto} <span style="color:var(--gray-mid); font-size:0.78rem;">(${p.sku})</span></td>
-          <td>${p.cantidad_pedida}</td>
-          <td>${p.cantidad_recibida}</td>
-          <td class="badge-red">${p.cantidad_pendiente}</td>
-          <td>${formatFecha(p.fecha_estimada_llegada)}</td>
-        </tr>`).join('') : `<tr class="empty-row"><td colspan="7">No hay pendientes de ingreso.</td></tr>`;
-    }
-  }
-
-  document.getElementById('oc-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const proveedor_id = document.getElementById('oc-proveedor').value;
-    const fecha_emision = document.getElementById('oc-fecha-emision').value;
-    const fecha_estimada_llegada = document.getElementById('oc-fecha-llegada').value || null;
-    const lineas = collectLines(ocLineasEl);
-
-    if (!proveedor_id) { showToast('Elegí un proveedor', 'error'); return; }
-    if (!lineas.length) { showToast('Agregá al menos un producto con cantidad', 'error'); return; }
-
-    const submitBtn = document.getElementById('oc-submit');
-    submitBtn.disabled = true;
-
-    const esImportacion = document.getElementById('oc-es-importacion').checked;
-    const { data: numeroOrden, error: errNumero } = await supabaseClient.rpc('fn_next_numero_orden', { es_importacion: esImportacion });
-    if (errNumero) { showToast('No se pudo generar el número de orden', 'error'); submitBtn.disabled = false; return; }
-
-    const { data: orden, error: errOrden } = await supabaseClient.from('ordenes_compra')
-      .insert([{ proveedor_id, fecha_emision, fecha_estimada_llegada, estado: 'pendiente', numero_orden: numeroOrden }])
-      .select().single();
-
-    if (errOrden || !orden) { showToast('No se pudo crear la orden', 'error'); submitBtn.disabled = false; return; }
-
-    const lineasPayload = lineas.map(l => ({ orden_compra_id: orden.id, producto_id: l.producto_id, cantidad_pedida: l.cantidad, costo_unitario: l.precio }));
-    const { error: errLineas } = await supabaseClient.from('orden_compra_lineas').insert(lineasPayload);
-
-    if (errLineas) { showToast('La orden se creó pero hubo un error con las líneas', 'error'); submitBtn.disabled = false; return; }
-
-    if (esImportacion) {
-      const proveedorNombre = document.getElementById('oc-proveedor').selectedOptions[0]?.textContent ?? '';
-      await supabaseClient.from('importaciones').insert([{
-        proveedor_id,
-        orden_compra_id: orden.id,
-        descripcion: `Compra a ${proveedorNombre} del ${formatFecha(fecha_emision)}`,
-        origen: document.getElementById('oc-imp-origen').value.trim() || null,
-        destino: document.getElementById('oc-imp-destino').value.trim() || null,
-        naviera: document.getElementById('oc-imp-naviera').value.trim() || null,
-        contenedor_tracking: document.getElementById('oc-imp-tracking').value.trim() || null,
-        fecha_pedido: fecha_emision,
-        fecha_estimada_llegada,
-        etapa: 'pedido_confirmado',
-      }]);
-    }
-
-    submitBtn.disabled = false;
-
-    showToast('Orden de compra creada');
-    ocLineasEl.innerHTML = '';
-    document.getElementById('oc-total').textContent = '$ 0';
-    addLineRow(ocLineasEl, { priceLabel: 'Costo unit.', priceSource: 'costo', totalElId: 'oc-total' });
-    document.getElementById('oc-fecha-llegada').value = '';
-    document.getElementById('oc-es-importacion').checked = false;
-    document.getElementById('oc-importacion-campos').style.display = 'none';
-    document.getElementById('oc-imp-origen').value = '';
-    document.getElementById('oc-imp-destino').value = '';
-    document.getElementById('oc-imp-naviera').value = '';
-    document.getElementById('oc-imp-tracking').value = '';
-    loadComprasView();
-    loadDashboard();
-  });
-
-  async function openRecibirModal(ordenId, editable = true, numero = '') {
-    document.getElementById('mr-error').style.display = 'none';
-    document.getElementById('mr-title').textContent = (editable ? 'Registrar recepción' : 'Detalle de la orden') + (numero ? ` — ${numero}` : '');
-    document.getElementById('mr-submit').style.display = editable ? 'inline-block' : 'none';
-    const cont = document.getElementById('mr-lineas');
-    cont.innerHTML = `<div class="loading-text">Cargando…</div>`;
-    openModal('modal-recibir');
-
-    const { data: lineas, error: errLineas } = await supabaseClient.from('orden_compra_lineas')
-      .select('id, producto_id, cantidad_pedida, costo_unitario, productos(nombre, sku)')
-      .eq('orden_compra_id', ordenId);
-
-    const { data: recepciones } = await supabaseClient.from('recepciones')
-      .select('id, recepcion_lineas(producto_id, cantidad_recibida)')
-      .eq('orden_compra_id', ordenId);
-
-    if (errLineas || !lineas) { cont.innerHTML = `<div class="empty-row">No se pudo cargar la orden.</div>`; return; }
-
-    const recibidoPorProducto = {};
-    (recepciones ?? []).forEach(r => (r.recepcion_lineas ?? []).forEach(l => {
-      recibidoPorProducto[l.producto_id] = (recibidoPorProducto[l.producto_id] || 0) + Number(l.cantidad_recibida);
-    }));
-
-    if (editable) {
-      cont.innerHTML = lineas.map(l => {
-        const recibido = recibidoPorProducto[l.producto_id] || 0;
-        const pendiente = Math.max(Number(l.cantidad_pedida) - recibido, 0);
-        return `
-          <div class="line-item-row" data-linea="${l.id}" data-producto="${l.producto_id}" data-pendiente="${pendiente}" style="grid-template-columns: 1fr 90px 110px; margin-bottom: 0.7rem;">
-            <div>
-              <div style="font-weight:600; font-size:0.88rem;">${l.productos?.nombre ?? '—'}</div>
-              <div style="font-size:0.75rem; color:var(--gray-mid);">${l.productos?.sku ?? ''} · pedido ${l.cantidad_pedida} · recibido ${recibido} · pendiente ${pendiente}</div>
-              <div class="mr-linea-error" style="display:none; font-size:0.75rem; color:var(--red-dark); margin-top:0.2rem;"></div>
-            </div>
-            <input type="number" class="mr-cantidad" min="0" max="${pendiente}" step="0.01" placeholder="Recibir" value="${pendiente > 0 ? pendiente : ''}" ${pendiente <= 0 ? 'disabled' : ''}>
-            <input type="number" class="mr-costo" min="0" step="0.01" value="${l.costo_unitario}">
-          </div>`;
-      }).join('');
-
-      cont.querySelectorAll('.mr-cantidad').forEach(input => {
-        input.addEventListener('input', () => {
-          const row = input.closest('.line-item-row');
-          const pendiente = Number(row.dataset.pendiente);
-          const errEl = row.querySelector('.mr-linea-error');
-          if (Number(input.value) > pendiente) {
-            errEl.textContent = `No podés recibir más de lo pendiente (${pendiente}).`;
-            errEl.style.display = 'block';
-            input.value = pendiente;
-          } else {
-            errEl.style.display = 'none';
-          }
-        });
-      });
-    } else {
-      cont.innerHTML = `
-        <table>
-          <thead><tr><th>SKU</th><th>Producto</th><th>Pedido</th><th>Recibido</th><th>Costo unit.</th></tr></thead>
-          <tbody>
-            ${lineas.map(l => `
-              <tr>
-                <td>${l.productos?.sku ?? '—'}</td>
-                <td>${l.productos?.nombre ?? '—'}</td>
-                <td>${l.cantidad_pedida}</td>
-                <td>${recibidoPorProducto[l.producto_id] || 0}</td>
-                <td>${formatARS(l.costo_unitario)}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>`;
-    }
-
-    if (!editable) return;
-
-    document.getElementById('mr-submit').onclick = async () => {
-      const rows = [...cont.querySelectorAll('.line-item-row')];
-      const payload = rows.map(row => ({
-        producto_id: row.dataset.producto,
-        cantidad_recibida: Number(row.querySelector('.mr-cantidad').value),
-        costo_unitario: Number(row.querySelector('.mr-costo').value),
-      })).filter(l => l.cantidad_recibida > 0);
-
-      if (!payload.length) { showToast('Ingresá alguna cantidad a recibir', 'error'); return; }
-
-      const { data: recepcion, error: errRec } = await supabaseClient.from('recepciones')
-        .insert([{ orden_compra_id: ordenId, fecha_real: todayStr() }]).select().single();
-
-      if (errRec || !recepcion) { showToast('No se pudo registrar la recepción', 'error'); return; }
-
-      const lineasPayload = payload.map(l => ({ recepcion_id: recepcion.id, producto_id: l.producto_id, cantidad_recibida: l.cantidad_recibida, costo_unitario: l.costo_unitario }));
-      const { error: errLineasRec } = await supabaseClient.from('recepcion_lineas').insert(lineasPayload);
-
-      if (errLineasRec) {
-        showToast(errLineasRec.message?.includes('supera') ? errLineasRec.message : 'La recepción se creó pero hubo un error con las líneas', 'error');
-        return;
-      }
-
-      closeModal('modal-recibir');
-      showToast('Recepción registrada — stock actualizado');
-      loadComprasView();
-      loadDashboard();
-    };
+  async function loadDashboard() {
+    const { data: activas } = await supabaseClient.from('vista_importaciones_activas').select('*');
+    document.getElementById('kpi-activas').textContent = activas ? activas.length : '—';
+    document.getElementById('count-activas').textContent = activas ? activas.length : 0;
+
+    const conEta = (activas ?? []).filter(a => a.fecha_eta).sort((a, b) => new Date(a.fecha_eta) - new Date(b.fecha_eta));
+    document.getElementById('kpi-proxima-eta').textContent = conEta.length ? formatFecha(conEta[0].fecha_eta) : '—';
+
+    const tbodyActivas = document.getElementById('tabla-dash-importaciones');
+    tbodyActivas.innerHTML = (activas && activas.length)
+      ? activas.slice(0, 8).map(a => `<tr><td>${a.empresa_compradora}</td><td>${a.proveedor}</td><td>${etapaLabel[a.etapa] ?? a.etapa}</td><td>${formatFecha(a.fecha_eta)}</td></tr>`).join('')
+      : `<tr class="empty-row"><td colspan="4">Sin importaciones activas.</td></tr>`;
+
+    const { data: saldos } = await supabaseClient.from('vista_saldos_intercompania').select('*');
+    const pendientes = (saldos ?? []).filter(s => s.saldo_pendiente > 0);
+    const totalPendiente = pendientes.reduce((acc, s) => acc + Number(s.saldo_pendiente), 0);
+    document.getElementById('kpi-saldo-total').textContent = formatUSD(totalPendiente);
+    document.getElementById('count-saldos').textContent = pendientes.length;
+
+    const tbodySaldos = document.getElementById('tabla-dash-saldos');
+    tbodySaldos.innerHTML = pendientes.length
+      ? pendientes.map(s => `<tr><td>${s.empresa_deudora}</td><td>${s.empresa_acreedora}</td><td>${formatUSD(s.saldo_pendiente)}</td></tr>`).join('')
+      : `<tr class="empty-row"><td colspan="3">No hay saldos pendientes.</td></tr>`;
+
+    const { data: transferencias } = await supabaseClient.from('transferencias_intercompania').select('id, estado').neq('estado', 'pagado').neq('estado', 'cancelado');
+    document.getElementById('kpi-transf-pendientes').textContent = transferencias ? transferencias.length : '—';
   }
 
   // ==================================================
   // IMPORTACIONES
   // ==================================================
-  const ETAPAS_IMPORTACION = [
-    { key: 'pedido_confirmado', label: 'Pedido confirmado', icon: '📝' },
-    { key: 'en_produccion', label: 'En producción', icon: '🏭' },
-    { key: 'en_el_agua', label: 'En el agua', icon: '🌊' },
-    { key: 'en_puerto_aduana', label: 'Puerto / Aduana', icon: '🛃' },
-    { key: 'transito_nacional', label: 'Tránsito nacional', icon: '🚛' },
-    { key: 'por_despachar', label: 'Por despachar', icon: '📦' },
-    { key: 'entregado', label: 'Entregado', icon: '✅' },
-  ];
-
   let importacionesById = {};
 
-  function diasDesde(iso) {
-    const dias = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-    if (dias <= 0) return 'hoy';
-    if (dias === 1) return 'hace 1 día';
-    return `hace ${dias} días`;
-  }
-
-  function renderImportTrack(importacion) {
-    const idx = ETAPAS_IMPORTACION.findIndex(e => e.key === importacion.etapa);
+  function renderImportTrack(imp) {
+    const idx = ETAPAS_IMPORTACION.findIndex(e => e.key === imp.etapa);
     const pct = idx <= 0 ? 0 : (idx / (ETAPAS_IMPORTACION.length - 1)) * 100;
-    const bloqueada = importacion.etapa === 'entregado';
+    const bloqueada = imp.etapa === 'finalizado';
     const stages = ETAPAS_IMPORTACION.map((etapa, i) => {
       const cls = i < idx ? 'done' : i === idx ? 'current' : '';
       return `
-        <button type="button" class="import-stage ${cls}" data-importacion="${importacion.id}" data-etapa="${etapa.key}" title="${bloqueada ? 'Entregado — etapa cerrada' : etapa.label}" ${bloqueada ? 'disabled' : ''}>
+        <button type="button" class="import-stage ${cls}" data-importacion="${imp.id}" data-etapa="${etapa.key}" title="${bloqueada ? 'Finalizado — etapa cerrada' : etapa.label}" ${bloqueada ? 'disabled' : ''}>
           <div class="dot">${etapa.icon}</div>
           <div class="label">${etapa.label}</div>
         </button>`;
     }).join('');
-
     return `
       <div class="import-track-wrap">
-        ${bloqueada ? '<div style="text-align:right; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">🔒 Entregado — etapa cerrada</div>' : ''}
+        ${bloqueada ? '<div style="text-align:right; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">🔒 Finalizado — etapa cerrada</div>' : ''}
         <div class="import-track-line"><div class="import-track-line-fill" style="width:${pct}%;"></div></div>
         <div class="import-track-row">${stages}</div>
       </div>`;
   }
 
-  async function loadImportacionesView() {
-    const proveedores = await ensureProveedoresCache();
-    fillSelect(document.getElementById('mimp-proveedor'), proveedores, null);
+  async function initImportacionesFiltros() {
+    const [empresas, proveedores] = await Promise.all([ensureEmpresasCache(), ensureProveedoresCache()]);
+    fillSelect(document.getElementById('imp-filtro-empresa'), empresas, 'Todas');
+    fillSelect(document.getElementById('imp-filtro-proveedor'), proveedores, 'Todos');
+    const etapaSel = document.getElementById('imp-filtro-etapa');
+    if (!etapaSel.dataset.filled) {
+      etapaSel.innerHTML = '<option value="">Todas</option>' + ETAPAS_IMPORTACION.map(e => `<option value="${e.key}">${e.label}</option>`).join('');
+      etapaSel.dataset.filled = '1';
+    }
+  }
 
+  async function loadImportacionesView() {
+    await initImportacionesFiltros();
     const cont = document.getElementById('lista-importaciones');
     cont.innerHTML = `<div class="loading-text">Cargando…</div>`;
 
-    const { data, error } = await supabaseClient.from('importaciones')
-      .select('id, descripcion, origen, destino, naviera, contenedor_tracking, fecha_pedido, fecha_estimada_llegada, etapa, etapa_actualizada_en, proveedor_id, orden_compra_id, proveedores(nombre), ordenes_compra(numero_orden)')
-      .order('etapa_actualizada_en', { ascending: false });
+    const empresaId = document.getElementById('imp-filtro-empresa').value;
+    const proveedorId = document.getElementById('imp-filtro-proveedor').value;
+    const etapa = document.getElementById('imp-filtro-etapa').value;
 
+    let query = supabaseClient.from('importaciones')
+      .select('*, empresas(nombre), proveedores(nombre)')
+      .order('fecha_eta', { ascending: true, nullsFirst: false });
+    if (empresaId) query = query.eq('empresa_compradora_id', empresaId);
+    if (proveedorId) query = query.eq('proveedor_id', proveedorId);
+    if (etapa) query = query.eq('etapa', etapa);
+
+    const { data, error } = await query;
     if (error || !data) { cont.innerHTML = `<div class="placeholder-view">No se pudieron cargar las importaciones.</div>`; return; }
 
     importacionesById = {};
-    data.forEach(imp => importacionesById[imp.id] = imp);
+    data.forEach(i => importacionesById[i.id] = i);
 
     cont.innerHTML = data.length ? data.map(imp => `
       <div class="import-card">
@@ -1845,63 +740,131 @@
           <div>
             <h3>${imp.descripcion}</h3>
             <div class="meta">
-              <strong>${imp.proveedores?.nombre ?? '—'}</strong>
-              ${imp.origen ? ` · ${imp.origen}` : ''}${imp.destino ? ` → ${imp.destino}` : ''}
-              ${imp.fecha_estimada_llegada ? ` · llegada estimada ${formatFecha(imp.fecha_estimada_llegada)}` : ''}
-              · en esta etapa ${diasDesde(imp.etapa_actualizada_en)}
+              <strong>${imp.empresas?.nombre ?? '—'}</strong> · ${imp.proveedores?.nombre ?? '—'}
+              ${imp.rubro ? ` · ${imp.rubro}` : ''}${imp.marca ? ` · ${imp.marca}` : ''}
+              ${imp.contenedores_tipo ? ` · ${imp.contenedores_cantidad ?? ''}${imp.contenedores_cantidad ? 'x ' : ''}${imp.contenedores_tipo}` : ''}
+              ${imp.fecha_eta ? ` · ETA ${formatFecha(imp.fecha_eta)}` : ''}
             </div>
           </div>
           <div class="import-card-actions">
-            ${imp.orden_compra_id ? `<button class="action-btn" data-ver-compra="${imp.orden_compra_id}">Ver ${imp.ordenes_compra?.numero_orden ?? 'compra vinculada'}</button>` : ''}
             <button class="action-btn" data-editar-importacion="${imp.id}">Editar</button>
           </div>
         </div>
         ${renderImportTrack(imp)}
-      </div>`).join('') : `<div class="placeholder-view"><h2>Sin importaciones cargadas</h2>Creá la primera con "+ Nueva importación".</div>`;
+        <span class="docs-toggle" data-docs-toggle="${imp.id}">📎 Ver documentos</span>
+        <div class="docs-panel" id="docs-panel-${imp.id}">
+          <div class="docs-list" id="docs-list-${imp.id}"><div class="loading-text">Cargando…</div></div>
+          <div class="doc-upload-row">
+            <select id="doc-tipo-${imp.id}">
+              <option>PI</option><option>PFI</option><option>CI</option><option>Packing List</option><option>BL</option><option>Otro</option>
+            </select>
+            <input type="file" id="doc-file-${imp.id}" accept="application/pdf,image/*">
+            <button type="button" class="btn-secondary" data-subir-doc="${imp.id}">Subir</button>
+          </div>
+        </div>
+      </div>`).join('') : `<div class="placeholder-view"><h2>Sin importaciones</h2>Creá la primera con "+ Nueva importación".</div>`;
 
     cont.querySelectorAll('[data-editar-importacion]').forEach(btn => {
       btn.addEventListener('click', () => openImportacionModal(importacionesById[btn.dataset.editarImportacion]));
     });
-
-    cont.querySelectorAll('[data-ver-compra]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelector('.nav-item[data-view="compras"]').click();
-      });
-    });
-
     cont.querySelectorAll('.import-stage').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const { error: errUpd } = await supabaseClient.from('importaciones')
-          .update({ etapa: btn.dataset.etapa }).eq('id', btn.dataset.importacion);
-        if (errUpd) {
-          showToast(errUpd.message?.includes('entregada') ? errUpd.message : 'No se pudo actualizar la etapa', 'error');
-          return;
-        }
+        const { error: errUpd } = await supabaseClient.from('importaciones').update({ etapa: btn.dataset.etapa }).eq('id', btn.dataset.importacion);
+        if (errUpd) { showToast(errUpd.message?.includes('finalizada') ? errUpd.message : 'No se pudo actualizar la etapa', 'error'); return; }
         showToast('Etapa actualizada');
         loadImportacionesView();
       });
     });
+    cont.querySelectorAll('[data-docs-toggle]').forEach(el => {
+      el.addEventListener('click', () => {
+        const panel = document.getElementById('docs-panel-' + el.dataset.docsToggle);
+        panel.classList.toggle('open');
+        if (panel.classList.contains('open')) loadDocumentos(el.dataset.docsToggle);
+      });
+    });
+    cont.querySelectorAll('[data-subir-doc]').forEach(btn => {
+      btn.addEventListener('click', () => subirDocumento(btn.dataset.subirDoc));
+    });
   }
 
-  function openImportacionModal(importacion) {
+  async function loadDocumentos(importacionId) {
+    const listEl = document.getElementById('docs-list-' + importacionId);
+    listEl.innerHTML = `<div class="loading-text">Cargando…</div>`;
+    const { data, error } = await supabaseClient.from('documentos_importacion').select('*').eq('importacion_id', importacionId).order('created_at', { ascending: false });
+    if (error || !data) { listEl.innerHTML = `<div class="loading-text">No se pudieron cargar los documentos.</div>`; return; }
+    listEl.innerHTML = data.length ? data.map(d => `
+      <div class="doc-item">
+        <span><span class="doc-name">${d.nombre_archivo}</span><span class="doc-tipo">${d.tipo}</span></span>
+        <button type="button" class="action-btn" data-ver-doc="${d.storage_path}">Ver</button>
+      </div>`).join('') : `<div style="font-size:0.82rem; color:var(--gray-mid);">Todavía no hay documentos.</div>`;
+
+    listEl.querySelectorAll('[data-ver-doc]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const { data: signed, error: errSigned } = await supabaseClient.storage.from(DOCS_BUCKET).createSignedUrl(btn.dataset.verDoc, 300);
+        if (errSigned || !signed) { showToast('No se pudo abrir el documento', 'error'); return; }
+        window.open(signed.signedUrl, '_blank');
+      });
+    });
+  }
+
+  async function subirDocumento(importacionId) {
+    const fileInput = document.getElementById('doc-file-' + importacionId);
+    const tipoSelect = document.getElementById('doc-tipo-' + importacionId);
+    const file = fileInput.files[0];
+    if (!file) { showToast('Elegí un archivo primero', 'error'); return; }
+
+    const path = `${importacionId}/${Date.now()}_${file.name}`;
+    const { error: errUpload } = await supabaseClient.storage.from(DOCS_BUCKET).upload(path, file);
+    if (errUpload) { showToast('No se pudo subir el archivo', 'error'); return; }
+
+    const { error: errInsert } = await supabaseClient.from('documentos_importacion').insert([{
+      importacion_id: importacionId, tipo: tipoSelect.value, nombre_archivo: file.name, storage_path: path,
+    }]);
+    if (errInsert) { showToast('El archivo se subió pero no se pudo registrar', 'error'); return; }
+
+    showToast('Documento subido');
+    fileInput.value = '';
+    loadDocumentos(importacionId);
+  }
+
+  document.getElementById('imp-filtro-empresa').addEventListener('change', loadImportacionesView);
+  document.getElementById('imp-filtro-proveedor').addEventListener('change', loadImportacionesView);
+  document.getElementById('imp-filtro-etapa').addEventListener('change', loadImportacionesView);
+  document.getElementById('imp-filtros-limpiar').addEventListener('click', () => {
+    document.getElementById('imp-filtro-empresa').value = '';
+    document.getElementById('imp-filtro-proveedor').value = '';
+    document.getElementById('imp-filtro-etapa').value = '';
+    loadImportacionesView();
+  });
+
+  async function openImportacionModal(imp) {
+    const [empresas, proveedores] = await Promise.all([ensureEmpresasCache(), ensureProveedoresCache()]);
+    fillSelect(document.getElementById('mimp-empresa'), empresas, null);
+    fillSelect(document.getElementById('mimp-proveedor'), proveedores, null);
     document.getElementById('mimp-form').reset();
     document.getElementById('mimp-error').style.display = 'none';
 
-    if (importacion) {
+    if (imp) {
       document.getElementById('mimp-title').textContent = 'Editar importación';
-      document.getElementById('mimp-id').value = importacion.id;
-      document.getElementById('mimp-proveedor').value = importacion.proveedor_id ?? '';
-      document.getElementById('mimp-descripcion').value = importacion.descripcion ?? '';
-      document.getElementById('mimp-origen').value = importacion.origen ?? '';
-      document.getElementById('mimp-destino').value = importacion.destino ?? '';
-      document.getElementById('mimp-naviera').value = importacion.naviera ?? '';
-      document.getElementById('mimp-tracking').value = importacion.contenedor_tracking ?? '';
-      document.getElementById('mimp-fecha-pedido').value = importacion.fecha_pedido ?? todayStr();
-      document.getElementById('mimp-fecha-llegada').value = importacion.fecha_estimada_llegada ?? '';
+      document.getElementById('mimp-id').value = imp.id;
+      document.getElementById('mimp-empresa').value = imp.empresa_compradora_id;
+      document.getElementById('mimp-proveedor').value = imp.proveedor_id;
+      document.getElementById('mimp-descripcion').value = imp.descripcion ?? '';
+      document.getElementById('mimp-rubro').value = imp.rubro ?? '';
+      document.getElementById('mimp-marca').value = imp.marca ?? '';
+      document.getElementById('mimp-numero-contenedor').value = imp.numero_contenedor ?? '';
+      document.getElementById('mimp-cont-cantidad').value = imp.contenedores_cantidad ?? 1;
+      document.getElementById('mimp-cont-tipo').value = imp.contenedores_tipo ?? '';
+      document.getElementById('mimp-monto-fob').value = imp.monto_fob ?? '';
+      document.getElementById('mimp-situacion-pago').value = imp.situacion_pago ?? '';
+      document.getElementById('mimp-fecha-pedido').value = imp.fecha_pedido ?? todayStr();
+      document.getElementById('mimp-fecha-emb-est').value = imp.fecha_estimada_embarque ?? '';
+      document.getElementById('mimp-fecha-eta').value = imp.fecha_eta ?? '';
       document.getElementById('mimp-delete-btn').style.display = 'inline-block';
     } else {
       document.getElementById('mimp-title').textContent = 'Nueva importación';
       document.getElementById('mimp-id').value = '';
+      document.getElementById('mimp-cont-cantidad').value = 1;
       document.getElementById('mimp-fecha-pedido').value = todayStr();
       document.getElementById('mimp-delete-btn').style.display = 'none';
     }
@@ -1914,99 +877,313 @@
     e.preventDefault();
     const id = document.getElementById('mimp-id').value;
     const payload = {
+      empresa_compradora_id: document.getElementById('mimp-empresa').value,
       proveedor_id: document.getElementById('mimp-proveedor').value,
       descripcion: document.getElementById('mimp-descripcion').value.trim(),
-      origen: document.getElementById('mimp-origen').value.trim() || null,
-      destino: document.getElementById('mimp-destino').value.trim() || null,
-      naviera: document.getElementById('mimp-naviera').value.trim() || null,
-      contenedor_tracking: document.getElementById('mimp-tracking').value.trim() || null,
+      rubro: document.getElementById('mimp-rubro').value.trim() || null,
+      marca: document.getElementById('mimp-marca').value.trim() || null,
+      numero_contenedor: document.getElementById('mimp-numero-contenedor').value.trim() || null,
+      contenedores_cantidad: Number(document.getElementById('mimp-cont-cantidad').value) || null,
+      contenedores_tipo: document.getElementById('mimp-cont-tipo').value.trim() || null,
+      monto_fob: document.getElementById('mimp-monto-fob').value ? Number(document.getElementById('mimp-monto-fob').value) : null,
+      situacion_pago: document.getElementById('mimp-situacion-pago').value.trim() || null,
       fecha_pedido: document.getElementById('mimp-fecha-pedido').value,
-      fecha_estimada_llegada: document.getElementById('mimp-fecha-llegada').value || null,
+      fecha_estimada_embarque: document.getElementById('mimp-fecha-emb-est').value || null,
+      fecha_eta: document.getElementById('mimp-fecha-eta').value || null,
     };
-
     const { error } = id
       ? await supabaseClient.from('importaciones').update(payload).eq('id', id)
-      : await supabaseClient.from('importaciones').insert([{ ...payload, etapa: 'pedido_confirmado' }]);
+      : await supabaseClient.from('importaciones').insert([payload]);
 
     const errEl = document.getElementById('mimp-error');
     if (error) { errEl.textContent = 'No se pudo guardar la importación.'; errEl.style.display = 'block'; return; }
-
     closeModal('modal-importacion');
     showToast(id ? 'Importación actualizada' : 'Importación creada');
     loadImportacionesView();
+    loadDashboard();
   });
 
   document.getElementById('mimp-delete-btn').addEventListener('click', async () => {
     const id = document.getElementById('mimp-id').value;
     if (!id) return;
-    if (!confirm('¿Eliminar esta importación? Esta acción no se puede deshacer.')) return;
-
+    if (!confirm('¿Eliminar esta importación? También se eliminan sus documentos. Esta acción no se puede deshacer.')) return;
     const { error } = await supabaseClient.from('importaciones').delete().eq('id', id);
-    if (error) {
-      const errEl = document.getElementById('mimp-error');
-      errEl.textContent = 'No se pudo eliminar la importación.';
-      errEl.style.display = 'block';
-      return;
-    }
+    if (error) { showToast('No se pudo eliminar la importación', 'error'); return; }
     closeModal('modal-importacion');
     showToast('Importación eliminada');
     loadImportacionesView();
+    loadDashboard();
   });
 
   // ==================================================
-  // VENTAS
+  // TRANSFERENCIAS
   // ==================================================
-  const vLineasEl = document.getElementById('v-lineas');
-  document.getElementById('v-add-line').addEventListener('click', () => addLineRow(vLineasEl, { priceLabel: 'Precio unit.', priceSource: 'precio', totalElId: 'v-total' }));
+  async function initTransferenciasSelects() {
+    const empresas = await ensureEmpresasCache();
+    fillSelect(document.getElementById('tr-vendedora'), empresas, null);
+    fillSelect(document.getElementById('tr-compradora'), empresas, null);
 
-  async function loadVentasView() {
-    const clientes = await ensureClientesCache();
-    fillSelect(document.getElementById('v-cliente'), clientes, '— Sin cliente —');
-    if (!vLineasEl.children.length) addLineRow(vLineasEl, { priceLabel: 'Precio unit.', priceSource: 'precio', totalElId: 'v-total' });
-
-    const tbody = document.getElementById('tabla-ventas');
-    tbody.innerHTML = `<tr><td colspan="3" class="loading-text">Cargando…</td></tr>`;
-    const { data, error } = await supabaseClient.from('ventas')
-      .select('id, fecha, clientes(nombre), venta_lineas(cantidad, precio_unitario)')
-      .order('fecha', { ascending: false }).limit(50);
-
-    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="3">No se pudo cargar.</td></tr>`; return; }
-
-    tbody.innerHTML = data.length ? data.map(v => {
-      const total = (v.venta_lineas ?? []).reduce((acc, l) => acc + Number(l.cantidad) * Number(l.precio_unitario), 0);
-      return `<tr><td>${v.clientes?.nombre ?? 'Consumidor final'}</td><td>${formatFecha(v.fecha)}</td><td>${formatARS(total)}</td></tr>`;
-    }).join('') : `<tr class="empty-row"><td colspan="3">Todavía no registraste ventas.</td></tr>`;
+    const { data: importaciones } = await supabaseClient.from('importaciones').select('id, descripcion').order('fecha_pedido', { ascending: false }).limit(100);
+    const sel = document.getElementById('tr-importacion');
+    sel.innerHTML = '<option value="">— Ninguna —</option>' + (importaciones ?? []).map(i => `<option value="${i.id}">${i.descripcion}</option>`).join('');
   }
 
-  document.getElementById('v-form').addEventListener('submit', async (e) => {
+  async function loadTransferenciasView() {
+    await initTransferenciasSelects();
+    const tbody = document.getElementById('tabla-transferencias');
+    tbody.innerHTML = `<tr><td colspan="7" class="loading-text">Cargando…</td></tr>`;
+
+    const { data, error } = await supabaseClient.from('transferencias_intercompania')
+      .select('*, vendedora:empresas!transferencias_intercompania_empresa_vendedora_id_fkey(nombre), compradora:empresas!transferencias_intercompania_empresa_compradora_id_fkey(nombre), importaciones(descripcion)')
+      .order('fecha', { ascending: false });
+
+    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="7">No se pudo cargar.</td></tr>`; return; }
+
+    tbody.innerHTML = data.length ? data.map(t => `
+      <tr>
+        <td>${formatFecha(t.fecha)}</td>
+        <td>${t.vendedora?.nombre ?? '—'}</td>
+        <td>${t.compradora?.nombre ?? '—'}</td>
+        <td>${formatUSD(t.monto)}</td>
+        <td>${t.importaciones?.descripcion ?? '—'}</td>
+        <td><span class="badge ${t.estado}">${estadoLabel[t.estado] ?? t.estado}</span></td>
+        <td>${t.estado !== 'pagado' && t.estado !== 'cancelado' ? `<button class="action-btn" data-cancelar-transferencia="${t.id}">Cancelar</button>` : '—'}</td>
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Todavía no hay transferencias.</td></tr>`;
+
+    tbody.querySelectorAll('[data-cancelar-transferencia]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('¿Marcar esta transferencia como cancelada?')) return;
+        const { error: errUpd } = await supabaseClient.from('transferencias_intercompania').update({ estado: 'cancelado' }).eq('id', btn.dataset.cancelarTransferencia);
+        if (errUpd) { showToast('No se pudo cancelar', 'error'); return; }
+        showToast('Transferencia cancelada');
+        loadTransferenciasView();
+        loadDashboard();
+      });
+    });
+  }
+
+  document.getElementById('tr-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const cliente_id = document.getElementById('v-cliente').value || null;
-    const fecha = document.getElementById('v-fecha').value;
-    const lineas = collectLines(vLineasEl);
+    const errEl = document.getElementById('tr-error');
+    errEl.style.display = 'none';
+    const empresa_vendedora_id = document.getElementById('tr-vendedora').value;
+    const empresa_compradora_id = document.getElementById('tr-compradora').value;
 
-    if (!lineas.length) { showToast('Agregá al menos un producto con cantidad', 'error'); return; }
+    if (empresa_vendedora_id === empresa_compradora_id) {
+      errEl.textContent = 'La empresa vendedora y compradora tienen que ser distintas.';
+      errEl.style.display = 'block';
+      return;
+    }
 
-    const submitBtn = document.getElementById('v-submit');
-    submitBtn.disabled = true;
+    const payload = {
+      empresa_vendedora_id, empresa_compradora_id,
+      monto: Number(document.getElementById('tr-monto').value),
+      fecha: document.getElementById('tr-fecha').value,
+      importacion_id: document.getElementById('tr-importacion').value || null,
+      descripcion: document.getElementById('tr-descripcion').value.trim() || null,
+    };
 
-    const { data: venta, error: errVenta } = await supabaseClient.from('ventas')
-      .insert([{ cliente_id, fecha }]).select().single();
+    const { error } = await supabaseClient.from('transferencias_intercompania').insert([payload]);
+    if (error) { errEl.textContent = 'No se pudo registrar la transferencia.'; errEl.style.display = 'block'; return; }
 
-    if (errVenta || !venta) { showToast('No se pudo registrar la venta', 'error'); submitBtn.disabled = false; return; }
-
-    const lineasPayload = lineas.map(l => ({ venta_id: venta.id, producto_id: l.producto_id, cantidad: l.cantidad, precio_unitario: l.precio }));
-    const { error: errLineas } = await supabaseClient.from('venta_lineas').insert(lineasPayload);
-
-    submitBtn.disabled = false;
-
-    if (errLineas) { showToast('La venta se creó pero hubo un error con las líneas', 'error'); return; }
-
-    showToast('Venta registrada — stock actualizado');
-    vLineasEl.innerHTML = '';
-    document.getElementById('v-total').textContent = '$ 0';
-    addLineRow(vLineasEl, { priceLabel: 'Precio unit.', priceSource: 'precio', totalElId: 'v-total' });
-    loadVentasView();
+    showToast('Transferencia registrada');
+    document.getElementById('tr-form').reset();
+    document.getElementById('tr-fecha').value = todayStr();
+    loadTransferenciasView();
     loadDashboard();
+  });
+
+  // ==================================================
+  // PAGOS
+  // ==================================================
+  async function initPagosSelects() {
+    const empresas = await ensureEmpresasCache();
+    fillSelect(document.getElementById('pg-paga'), empresas, null);
+    fillSelect(document.getElementById('pg-recibe'), empresas, null);
+
+    const { data: transferencias } = await supabaseClient.from('transferencias_intercompania')
+      .select('id, monto, vendedora:empresas!transferencias_intercompania_empresa_vendedora_id_fkey(nombre), compradora:empresas!transferencias_intercompania_empresa_compradora_id_fkey(nombre)')
+      .neq('estado', 'pagado').neq('estado', 'cancelado')
+      .order('fecha', { ascending: false });
+    const sel = document.getElementById('pg-transferencia');
+    sel.innerHTML = '<option value="">— Ninguna —</option>' + (transferencias ?? []).map(t =>
+      `<option value="${t.id}">${t.compradora?.nombre} → ${t.vendedora?.nombre} · ${formatUSD(t.monto)}</option>`).join('');
+  }
+
+  async function loadPagosView() {
+    await initPagosSelects();
+    const tbody = document.getElementById('tabla-pagos');
+    tbody.innerHTML = `<tr><td colspan="5" class="loading-text">Cargando…</td></tr>`;
+
+    const { data, error } = await supabaseClient.from('pagos_intercompania')
+      .select('*, paga:empresas!pagos_intercompania_empresa_paga_id_fkey(nombre), recibe:empresas!pagos_intercompania_empresa_recibe_id_fkey(nombre)')
+      .order('fecha', { ascending: false });
+
+    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="5">No se pudo cargar.</td></tr>`; return; }
+
+    tbody.innerHTML = data.length ? data.map(p => `
+      <tr>
+        <td>${formatFecha(p.fecha)}</td>
+        <td>${p.paga?.nombre ?? '—'}</td>
+        <td>${p.recibe?.nombre ?? '—'}</td>
+        <td>${formatUSD(p.monto)}</td>
+        <td>${p.referencia ?? '—'}</td>
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Todavía no hay pagos.</td></tr>`;
+  }
+
+  document.getElementById('pg-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('pg-error');
+    errEl.style.display = 'none';
+    const empresa_paga_id = document.getElementById('pg-paga').value;
+    const empresa_recibe_id = document.getElementById('pg-recibe').value;
+
+    if (empresa_paga_id === empresa_recibe_id) {
+      errEl.textContent = 'La empresa que paga y la que recibe tienen que ser distintas.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    const payload = {
+      empresa_paga_id, empresa_recibe_id,
+      monto: Number(document.getElementById('pg-monto').value),
+      fecha: document.getElementById('pg-fecha').value,
+      transferencia_id: document.getElementById('pg-transferencia').value || null,
+      referencia: document.getElementById('pg-referencia').value.trim() || null,
+    };
+
+    const { error } = await supabaseClient.from('pagos_intercompania').insert([payload]);
+    if (error) { errEl.textContent = 'No se pudo registrar el pago.'; errEl.style.display = 'block'; return; }
+
+    showToast('Pago registrado');
+    document.getElementById('pg-form').reset();
+    document.getElementById('pg-fecha').value = todayStr();
+    loadPagosView();
+    loadDashboard();
+    loadSaldosView();
+  });
+
+  // ==================================================
+  // SALDOS
+  // ==================================================
+  async function loadSaldosView() {
+    const tbody = document.getElementById('tabla-saldos');
+    tbody.innerHTML = `<tr><td colspan="5" class="loading-text">Cargando…</td></tr>`;
+
+    const [{ data: saldos, error }, empresas] = await Promise.all([
+      supabaseClient.from('vista_saldos_intercompania').select('*'),
+      ensureEmpresasCache(),
+    ]);
+
+    if (error || !saldos) { tbody.innerHTML = `<tr class="empty-row"><td colspan="5">No se pudo cargar.</td></tr>`; return; }
+
+    tbody.innerHTML = saldos.length ? saldos.map(s => `
+      <tr>
+        <td>${s.empresa_deudora}</td>
+        <td>${s.empresa_acreedora}</td>
+        <td>${formatUSD(s.total_facturado)}</td>
+        <td>${formatUSD(s.total_pagado)}</td>
+        <td class="${s.saldo_pendiente > 0 ? 'saldo-pos' : ''}">${formatUSD(s.saldo_pendiente)}</td>
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="5">No hay movimientos intercompañía todavía.</td></tr>`;
+
+    const kpiCont = document.getElementById('kpi-saldos-por-empresa');
+    kpiCont.innerHTML = empresas.map(emp => {
+      const leDeben = saldos.filter(s => s.empresa_acreedora_id === emp.id).reduce((acc, s) => acc + Number(s.saldo_pendiente), 0);
+      const debe = saldos.filter(s => s.empresa_deudora_id === emp.id).reduce((acc, s) => acc + Number(s.saldo_pendiente), 0);
+      const neto = leDeben - debe;
+      return `
+        <div class="kpi-card">
+          <div class="label">${emp.nombre}${emp.alias ? ` (${emp.alias})` : ''}</div>
+          <div class="value" style="${neto > 0 ? 'color:var(--green);' : neto < 0 ? 'color:var(--red);' : ''}">${neto >= 0 ? '+' : ''}${formatUSD(neto)}</div>
+          <div style="font-size:0.72rem; color:var(--gray-mid); margin-top:0.3rem;">Le deben ${formatUSD(leDeben)} · Debe ${formatUSD(debe)}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // ==================================================
+  // PROVEEDORES
+  // ==================================================
+  let proveedoresById = {};
+
+  async function loadProveedoresView() {
+    const tbody = document.getElementById('tabla-proveedores');
+    tbody.innerHTML = `<tr><td colspan="6" class="loading-text">Cargando…</td></tr>`;
+    const { data, error } = await supabaseClient.from('proveedores').select('*').order('nombre');
+    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No se pudo cargar.</td></tr>`; return; }
+
+    proveedoresById = {};
+    data.forEach(p => proveedoresById[p.id] = p);
+
+    tbody.innerHTML = data.length ? data.map(p => `
+      <tr>
+        <td>${p.nombre}</td><td>${p.pais ?? '—'}</td><td>${p.contacto ?? '—'}</td><td>${p.telefono ?? '—'}</td><td>${p.email ?? '—'}</td>
+        <td><button class="action-btn" data-editar-proveedor="${p.id}">Editar</button></td>
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="6">Todavía no cargaste proveedores.</td></tr>`;
+
+    tbody.querySelectorAll('[data-editar-proveedor]').forEach(btn => {
+      btn.addEventListener('click', () => openProveedorModal(proveedoresById[btn.dataset.editarProveedor]));
+    });
+  }
+
+  function openProveedorModal(prov) {
+    document.getElementById('mv-form').reset();
+    document.getElementById('mv-error').style.display = 'none';
+    if (prov) {
+      document.getElementById('mv-title').textContent = 'Editar proveedor';
+      document.getElementById('mv-id').value = prov.id;
+      document.getElementById('mv-nombre').value = prov.nombre ?? '';
+      document.getElementById('mv-pais').value = prov.pais ?? '';
+      document.getElementById('mv-contacto').value = prov.contacto ?? '';
+      document.getElementById('mv-telefono').value = prov.telefono ?? '';
+      document.getElementById('mv-email').value = prov.email ?? '';
+      document.getElementById('mv-delete-btn').style.display = 'inline-block';
+    } else {
+      document.getElementById('mv-title').textContent = 'Nuevo proveedor';
+      document.getElementById('mv-id').value = '';
+      document.getElementById('mv-delete-btn').style.display = 'none';
+    }
+    openModal('modal-proveedor');
+  }
+
+  document.getElementById('btn-nuevo-proveedor').addEventListener('click', () => openProveedorModal(null));
+
+  document.getElementById('mv-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('mv-id').value;
+    const payload = {
+      nombre: document.getElementById('mv-nombre').value.trim(),
+      pais: document.getElementById('mv-pais').value.trim() || null,
+      contacto: document.getElementById('mv-contacto').value.trim() || null,
+      telefono: document.getElementById('mv-telefono').value.trim() || null,
+      email: document.getElementById('mv-email').value.trim() || null,
+    };
+    const { error } = id
+      ? await supabaseClient.from('proveedores').update(payload).eq('id', id)
+      : await supabaseClient.from('proveedores').insert([payload]);
+
+    const errEl = document.getElementById('mv-error');
+    if (error) { errEl.textContent = 'No se pudo guardar el proveedor.'; errEl.style.display = 'block'; return; }
+    closeModal('modal-proveedor');
+    showToast(id ? 'Proveedor actualizado' : 'Proveedor creado');
+    await ensureProveedoresCache(true);
+    loadProveedoresView();
+  });
+
+  document.getElementById('mv-delete-btn').addEventListener('click', async () => {
+    const id = document.getElementById('mv-id').value;
+    if (!id) return;
+    if (!confirm('¿Eliminar este proveedor?')) return;
+    const { error } = await supabaseClient.from('proveedores').delete().eq('id', id);
+    if (error) {
+      const errEl = document.getElementById('mv-error');
+      errEl.textContent = error.code === '23503' ? 'No se puede eliminar: tiene importaciones asociadas.' : 'No se pudo eliminar.';
+      errEl.style.display = 'block';
+      return;
+    }
+    closeModal('modal-proveedor');
+    showToast('Proveedor eliminado');
+    await ensureProveedoresCache(true);
+    loadProveedoresView();
   });
 
   // ---------- Sesión inicial ----------
