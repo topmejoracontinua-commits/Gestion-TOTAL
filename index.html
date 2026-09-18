@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root {
     --ink: #0B1220;
@@ -366,7 +367,10 @@
       <div class="view" id="view-productos">
         <div class="main-header">
           <div><h1>Productos</h1><p>Catálogo compartido (medida, marca, categoría, gama)</p></div>
-          <button class="btn-primary" id="btn-nuevo-producto">+ Nuevo producto</button>
+          <div style="display:flex; gap:0.6rem;">
+            <button class="btn-secondary" id="btn-importar-productos">Importar Excel</button>
+            <button class="btn-primary" id="btn-nuevo-producto">+ Nuevo producto</button>
+          </div>
         </div>
         <div class="panel-wide">
           <div class="panel-wide-head">
@@ -515,6 +519,60 @@
 
 <!-- ===================== MODALES ===================== -->
 
+<div class="modal-overlay" id="modal-import">
+  <div class="modal" style="max-width: 640px;">
+    <h3>Importar productos desde Excel</h3>
+    <div class="form-error" id="mi-error"></div>
+
+    <div id="mi-step-file">
+      <div class="field">
+        <label>Archivo (.xlsx)</label>
+        <input type="file" id="mi-file" accept=".xlsx,.xls">
+      </div>
+      <p style="font-size:0.8rem; color:var(--gray-mid); margin-top:0.5rem;">
+        Se lee la primera hoja del archivo, usando la primera fila como encabezados.
+      </p>
+    </div>
+
+    <div id="mi-step-mapping" style="display:none;">
+      <p style="font-size:0.85rem; color:var(--gray-mid); margin-bottom:1rem;">
+        <strong id="mi-row-count">0</strong> filas detectadas. Indicá qué columna corresponde a cada campo.
+      </p>
+      <div class="form-row">
+        <div class="field"><label>Código</label><select id="mi-map-codigo"></select></div>
+        <div class="field"><label>Descripción *</label><select id="mi-map-descripcion"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Medida</label><select id="mi-map-medida"></select></div>
+        <div class="field"><label>Marca</label><select id="mi-map-marca"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Categoría</label><select id="mi-map-categoria"></select></div>
+        <div class="field"><label>Gama</label><select id="mi-map-gama"></select></div>
+      </div>
+
+      <div class="panel-wide" style="margin-top:1rem;">
+        <div class="panel-wide-head"><h3>Vista previa (primeras 5 filas)</h3></div>
+        <div class="table-scroll"><table><thead id="mi-preview-head"></thead><tbody id="mi-preview-body"></tbody></table></div>
+      </div>
+
+      <p style="font-size:0.8rem; color:var(--gray-mid); margin-top:0.9rem;">
+        Los productos se identifican por Código: si ya existe, se actualiza; si no existe, se crea. Las filas sin código se crean como nuevas siempre.
+      </p>
+    </div>
+
+    <div id="mi-step-progress" style="display:none;">
+      <p id="mi-progress-text" style="font-size:0.9rem;">Importando…</p>
+    </div>
+
+    <div class="modal-close-row">
+      <button type="button" class="btn-secondary" data-close-modal="modal-import">Cancelar</button>
+      <button type="button" class="btn-primary" id="mi-analyze-btn">Analizar archivo</button>
+      <button type="button" class="btn-primary" id="mi-import-btn" style="display:none;">Importar productos</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-solicitud">
   <div class="modal" style="max-width: 520px;">
     <h3 id="msol-title">Nueva solicitud</h3>
@@ -527,10 +585,24 @@
       </div>
       <div class="form-row">
         <div class="field"><label>Condición de pago</label><input type="text" id="msol-condicion-pago" placeholder="Ej: 30% anticipo, 70% CI"></div>
-        <div class="field"><label>Puerto destino</label><input type="text" id="msol-puerto-destino"></div>
+        <div class="field">
+          <label>Puerto destino</label>
+          <select id="msol-puerto-destino"><option value="">— Elegir —</option><option value="__nuevo__">+ Agregar nuevo puerto…</option></select>
+          <div id="msol-puerto-nuevo-wrap" style="display:none; margin-top:0.5rem;">
+            <input type="text" id="msol-puerto-nuevo" placeholder="Nombre del nuevo puerto">
+          </div>
+        </div>
       </div>
       <div class="form-row">
-        <div class="field"><label>Incoterm</label><input type="text" id="msol-incoterm" placeholder="Ej: FOB"></div>
+        <div class="field">
+          <label>Incoterm</label>
+          <select id="msol-incoterm">
+            <option value="">— Elegir —</option>
+            <option>EXW</option><option>FCA</option><option>FAS</option><option>FOB</option>
+            <option>CFR</option><option>CIF</option><option>CPT</option><option>CIP</option>
+            <option>DAP</option><option>DPU</option><option>DDP</option>
+          </select>
+        </div>
         <div class="field"><label>Fecha</label><input type="date" id="msol-fecha" required></div>
       </div>
       <div class="field"><label>Notas</label><input type="text" id="msol-notas"></div>
@@ -771,6 +843,21 @@
     return proveedoresCache;
   }
 
+  let puertosCache = null;
+  async function ensurePuertosCache(force = false) {
+    if (puertosCache && !force) return puertosCache;
+    const { data, error } = await supabaseClient.from('puertos').select('nombre').order('nombre');
+    puertosCache = error ? [] : data.map(p => p.nombre);
+    return puertosCache;
+  }
+
+  function fillPuertoSelect(selectEl, puertos, valorActual) {
+    selectEl.innerHTML = '<option value="">— Elegir —</option><option value="__nuevo__">+ Agregar nuevo puerto…</option>' +
+      puertos.map(p => `<option value="${p}">${p}</option>`).join('');
+    if (valorActual && puertos.includes(valorActual)) selectEl.value = valorActual;
+    else if (valorActual) selectEl.innerHTML += `<option value="${valorActual}" selected>${valorActual}</option>`;
+  }
+
   // ==================================================
   // DASHBOARD
   // ==================================================
@@ -891,6 +978,179 @@
     closeModal('modal-producto');
     showToast('Producto eliminado');
     loadProductosView();
+  });
+
+  // ---------- Importar productos desde Excel ----------
+  let miRows = [];
+  const miFieldSelects = {
+    codigo: 'mi-map-codigo', descripcion: 'mi-map-descripcion', medida: 'mi-map-medida',
+    marca: 'mi-map-marca', categoria: 'mi-map-categoria', gama: 'mi-map-gama',
+  };
+
+  function guessColumn(headers, candidates) {
+    const found = headers.find(h => candidates.some(c => h.toLowerCase().trim() === c));
+    if (found) return found;
+    return headers.find(h => candidates.some(c => h.toLowerCase().includes(c))) || '';
+  }
+
+  document.getElementById('btn-importar-productos').addEventListener('click', () => {
+    document.getElementById('mi-error').style.display = 'none';
+    document.getElementById('mi-file').value = '';
+    document.getElementById('mi-step-file').style.display = 'block';
+    document.getElementById('mi-step-mapping').style.display = 'none';
+    document.getElementById('mi-step-progress').style.display = 'none';
+    document.getElementById('mi-analyze-btn').style.display = 'inline-block';
+    document.getElementById('mi-import-btn').style.display = 'none';
+    openModal('modal-import');
+  });
+
+  document.getElementById('mi-analyze-btn').addEventListener('click', () => {
+    const fileInput = document.getElementById('mi-file');
+    const errEl = document.getElementById('mi-error');
+    errEl.style.display = 'none';
+    const file = fileInput.files[0];
+    if (!file) { errEl.textContent = 'Elegí un archivo primero.'; errEl.style.display = 'block'; return; }
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const wb = XLSX.read(evt.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        if (!rows.length) { errEl.textContent = 'El archivo no tiene filas de datos.'; errEl.style.display = 'block'; return; }
+
+        miRows = rows;
+        const headers = Object.keys(rows[0]);
+
+        const guesses = {
+          codigo: guessColumn(headers, ['codigo', 'código', 'sku']),
+          descripcion: guessColumn(headers, ['descripcion', 'descripción', 'producto', 'nombre']),
+          medida: guessColumn(headers, ['medida', 'size']),
+          marca: guessColumn(headers, ['marca', 'brand']),
+          categoria: guessColumn(headers, ['categoria', 'categoría', 'rubro', 'segmento']),
+          gama: guessColumn(headers, ['gama']),
+        };
+
+        Object.entries(miFieldSelects).forEach(([key, selectId]) => {
+          const select = document.getElementById(selectId);
+          const isRequired = key === 'descripcion';
+          select.innerHTML = (isRequired ? '' : '<option value="">— No importar —</option>') +
+            headers.map(h => `<option value="${h}" ${guesses[key] === h ? 'selected' : ''}>${h}</option>`).join('');
+        });
+
+        document.getElementById('mi-row-count').textContent = rows.length;
+        renderMiPreview();
+
+        document.getElementById('mi-step-file').style.display = 'none';
+        document.getElementById('mi-step-mapping').style.display = 'block';
+        document.getElementById('mi-analyze-btn').style.display = 'none';
+        document.getElementById('mi-import-btn').style.display = 'inline-block';
+      } catch (err) {
+        errEl.textContent = 'No se pudo leer el archivo. ¿Es un Excel válido?';
+        errEl.style.display = 'block';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  function currentMiMapping() {
+    return {
+      codigo: document.getElementById('mi-map-codigo').value,
+      descripcion: document.getElementById('mi-map-descripcion').value,
+      medida: document.getElementById('mi-map-medida').value,
+      marca: document.getElementById('mi-map-marca').value,
+      categoria: document.getElementById('mi-map-categoria').value,
+      gama: document.getElementById('mi-map-gama').value,
+    };
+  }
+
+  function renderMiPreview() {
+    const mapping = currentMiMapping();
+    const cols = Object.entries(mapping).filter(([, v]) => v);
+    document.getElementById('mi-preview-head').innerHTML = '<tr>' + cols.map(([k]) => `<th>${k}</th>`).join('') + '</tr>';
+    document.getElementById('mi-preview-body').innerHTML = miRows.slice(0, 5).map(row =>
+      '<tr>' + cols.map(([, col]) => `<td>${row[col] ?? ''}</td>`).join('') + '</tr>'
+    ).join('');
+  }
+
+  Object.values(miFieldSelects).forEach(id => {
+    document.getElementById(id).addEventListener('change', renderMiPreview);
+  });
+
+  document.getElementById('mi-import-btn').addEventListener('click', async () => {
+    const mapping = currentMiMapping();
+    const errEl = document.getElementById('mi-error');
+    errEl.style.display = 'none';
+
+    if (!mapping.descripcion) {
+      errEl.textContent = 'Tenés que mapear al menos la Descripción.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    const payload = miRows.map(row => {
+      const descripcion = String(row[mapping.descripcion] ?? '').trim();
+      if (!descripcion) return null;
+      const codigo = mapping.codigo ? String(row[mapping.codigo] ?? '').trim() || null : null;
+      return {
+        codigo,
+        descripcion,
+        medida: mapping.medida ? String(row[mapping.medida] ?? '').trim() || null : null,
+        marca: mapping.marca ? String(row[mapping.marca] ?? '').trim() || null : null,
+        categoria: mapping.categoria ? String(row[mapping.categoria] ?? '').trim() || null : null,
+        gama: mapping.gama ? String(row[mapping.gama] ?? '').trim() || null : null,
+      };
+    }).filter(Boolean);
+
+    if (!payload.length) {
+      errEl.textContent = 'No se encontraron filas válidas con Descripción.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    // Deduplicar por código (Postgres rechaza un upsert que toque la misma fila dos veces).
+    // Las filas sin código (null) no chocan entre sí, así que se dejan todas.
+    const dedupMap = new Map();
+    const sinCodigo = [];
+    let duplicados = 0;
+    payload.forEach(p => {
+      if (!p.codigo) { sinCodigo.push(p); return; }
+      if (dedupMap.has(p.codigo)) duplicados++;
+      dedupMap.set(p.codigo, p);
+    });
+    const finalPayload = [...dedupMap.values(), ...sinCodigo];
+
+    document.getElementById('mi-step-mapping').style.display = 'none';
+    document.getElementById('mi-step-progress').style.display = 'block';
+    document.getElementById('mi-import-btn').style.display = 'none';
+
+    const chunkSize = 300;
+    let imported = 0;
+    let failed = 0;
+
+    for (let i = 0; i < finalPayload.length; i += chunkSize) {
+      const chunk = finalPayload.slice(i, i + chunkSize);
+      document.getElementById('mi-progress-text').textContent = `Importando ${Math.min(i + chunkSize, finalPayload.length)} / ${finalPayload.length}…`;
+      const conCodigo = chunk.filter(p => p.codigo);
+      const sinCod = chunk.filter(p => !p.codigo);
+      if (conCodigo.length) {
+        const { error } = await supabaseClient.from('productos').upsert(conCodigo, { onConflict: 'codigo' });
+        if (error) failed += conCodigo.length; else imported += conCodigo.length;
+      }
+      if (sinCod.length) {
+        const { error } = await supabaseClient.from('productos').insert(sinCod);
+        if (error) failed += sinCod.length; else imported += sinCod.length;
+      }
+    }
+
+    document.getElementById('mi-progress-text').textContent =
+      (failed ? `Listo con errores: ${imported} importados, ${failed} fallaron. ` : `Importación completa: ${imported} productos. `) +
+      (duplicados ? `(${duplicados} filas con código repetido, se usó la última de cada una)` : '');
+
+    showToast(failed ? 'Importación terminada con errores' : 'Importación completa', failed ? 'error' : 'success');
+    loadProductosView();
+
+    setTimeout(() => closeModal('modal-import'), 1600);
   });
 
   // ==================================================
@@ -1135,9 +1395,12 @@
   }
 
   async function openSolicitudModal(sol) {
-    const [empresas, proveedores] = await Promise.all([ensureEmpresasCache(), ensureProveedoresCache()]);
+    const [empresas, proveedores, puertos] = await Promise.all([ensureEmpresasCache(), ensureProveedoresCache(), ensurePuertosCache()]);
     fillSelect(document.getElementById('msol-empresa'), empresas, null);
     fillSelect(document.getElementById('msol-proveedor'), proveedores, '— A definir —');
+    fillPuertoSelect(document.getElementById('msol-puerto-destino'), puertos, sol ? sol.puerto_destino : null);
+    document.getElementById('msol-puerto-nuevo-wrap').style.display = 'none';
+    document.getElementById('msol-puerto-nuevo').value = '';
     document.getElementById('msol-form').reset();
     document.getElementById('msol-error').style.display = 'none';
 
@@ -1161,6 +1424,11 @@
     openModal('modal-solicitud');
   }
 
+  document.getElementById('msol-puerto-destino').addEventListener('change', (e) => {
+    const isNuevo = e.target.value === '__nuevo__';
+    document.getElementById('msol-puerto-nuevo-wrap').style.display = isNuevo ? 'block' : 'none';
+  });
+
   document.getElementById('btn-nueva-solicitud').addEventListener('click', () => openSolicitudModal(null));
 
   document.getElementById('msol-form').addEventListener('submit', async (e) => {
@@ -1169,12 +1437,22 @@
     const errEl = document.getElementById('msol-error');
     errEl.style.display = 'none';
 
+    let puertoDestino = document.getElementById('msol-puerto-destino').value;
+    if (puertoDestino === '__nuevo__') {
+      const nuevoNombre = document.getElementById('msol-puerto-nuevo').value.trim();
+      if (!nuevoNombre) { errEl.textContent = 'Escribí el nombre del nuevo puerto.'; errEl.style.display = 'block'; return; }
+      const { error: errPuerto } = await supabaseClient.from('puertos').upsert([{ nombre: nuevoNombre }], { onConflict: 'nombre' });
+      if (errPuerto) { errEl.textContent = 'No se pudo guardar el nuevo puerto.'; errEl.style.display = 'block'; return; }
+      puertoDestino = nuevoNombre;
+      await ensurePuertosCache(true);
+    }
+
     const basePayload = {
       empresa_compradora_id: document.getElementById('msol-empresa').value,
       proveedor_id: document.getElementById('msol-proveedor').value || null,
       condicion_pago: document.getElementById('msol-condicion-pago').value.trim() || null,
-      puerto_destino: document.getElementById('msol-puerto-destino').value.trim() || null,
-      incoterm: document.getElementById('msol-incoterm').value.trim() || null,
+      puerto_destino: puertoDestino || null,
+      incoterm: document.getElementById('msol-incoterm').value || null,
       fecha: document.getElementById('msol-fecha').value,
       notas: document.getElementById('msol-notas').value.trim() || null,
     };
