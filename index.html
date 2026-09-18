@@ -368,6 +368,7 @@
         <div class="main-header">
           <div><h1>Productos</h1><p>Catálogo compartido (medida, marca, categoría, gama)</p></div>
           <div style="display:flex; gap:0.6rem;">
+            <button class="btn-secondary" id="btn-exportar-productos">Exportar catálogo</button>
             <button class="btn-secondary" id="btn-importar-productos">Importar Excel</button>
             <button class="btn-primary" id="btn-nuevo-producto">+ Nuevo producto</button>
           </div>
@@ -518,6 +519,59 @@
 </div>
 
 <!-- ===================== MODALES ===================== -->
+
+<div class="modal-overlay" id="modal-import-lineas">
+  <div class="modal" style="max-width: 640px;">
+    <h3 id="mil-title">Importar líneas desde Excel</h3>
+    <div class="form-error" id="mil-error"></div>
+
+    <div id="mil-step-file">
+      <div class="field">
+        <label>Archivo (.xlsx)</label>
+        <input type="file" id="mil-file" accept=".xlsx,.xls">
+      </div>
+      <p style="font-size:0.8rem; color:var(--gray-mid); margin-top:0.5rem;">
+        Ideal: la misma planilla exportada desde Productos, ya con la columna Cantidad completada por tu cliente.
+      </p>
+    </div>
+
+    <div id="mil-step-mapping" style="display:none;">
+      <p style="font-size:0.85rem; color:var(--gray-mid); margin-bottom:1rem;">
+        <strong id="mil-row-count">0</strong> filas detectadas.
+      </p>
+      <div class="form-row">
+        <div class="field"><label>Código</label><select id="mil-map-codigo"></select></div>
+        <div class="field"><label>Descripción</label><select id="mil-map-descripcion"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Medida</label><select id="mil-map-medida"></select></div>
+        <div class="field"><label>Marca</label><select id="mil-map-marca"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Categoría</label><select id="mil-map-categoria"></select></div>
+        <div class="field"><label>Gama</label><select id="mil-map-gama"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Cantidad *</label><select id="mil-map-cantidad"></select></div>
+        <div class="field"><label>Precio unitario</label><select id="mil-map-precio"></select></div>
+      </div>
+
+      <p style="font-size:0.8rem; color:var(--gray-mid); margin-top:0.5rem;">
+        Se busca el producto por Código; si no está, se busca por Descripción; si tampoco existe, se crea nuevo en el catálogo con los datos de la fila. Las filas sin cantidad (o cantidad 0) se omiten.
+      </p>
+    </div>
+
+    <div id="mil-step-progress" style="display:none;">
+      <p id="mil-progress-text" style="font-size:0.9rem;">Importando…</p>
+    </div>
+
+    <div class="modal-close-row">
+      <button type="button" class="btn-secondary" data-close-modal="modal-import-lineas">Cancelar</button>
+      <button type="button" class="btn-primary" id="mil-analyze-btn">Analizar archivo</button>
+      <button type="button" class="btn-primary" id="mil-import-btn" style="display:none;">Importar líneas</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-overlay" id="modal-import">
   <div class="modal" style="max-width: 640px;">
@@ -920,6 +974,24 @@
 
   document.getElementById('prod-search').addEventListener('input', debounce(loadProductosView, 300));
 
+  document.getElementById('btn-exportar-productos').addEventListener('click', async () => {
+    const term = document.getElementById('prod-search').value.trim();
+    let query = supabaseClient.from('productos').select('codigo, descripcion, medida, marca, categoria, gama').order('descripcion').limit(5000);
+    if (term) query = query.or(`descripcion.ilike.%${term}%,codigo.ilike.%${term}%`);
+    const { data, error } = await query;
+    if (error || !data || !data.length) { showToast('No hay productos para exportar', 'error'); return; }
+
+    const filas = data.map(p => ({
+      Codigo: p.codigo ?? '', Descripcion: p.descripcion, Medida: p.medida ?? '',
+      Marca: p.marca ?? '', Categoria: p.categoria ?? '', Gama: p.gama ?? '', Cantidad: '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(filas);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Catalogo');
+    XLSX.writeFile(wb, `catalogo_productos_${todayStr()}.xlsx`);
+    showToast('Catálogo exportado');
+  });
+
   function openProductoModal(prod) {
     document.getElementById('mp-form').reset();
     document.getElementById('mp-error').style.display = 'none';
@@ -1154,6 +1226,199 @@
   });
 
   // ==================================================
+  // IMPORTAR LÍNEAS DE UNA SOLICITUD DESDE EXCEL
+  // ==================================================
+  let milRows = [];
+  let milSolicitudId = null;
+  const milFieldSelects = {
+    codigo: 'mil-map-codigo', descripcion: 'mil-map-descripcion', medida: 'mil-map-medida',
+    marca: 'mil-map-marca', categoria: 'mil-map-categoria', gama: 'mil-map-gama',
+    cantidad: 'mil-map-cantidad', precio: 'mil-map-precio',
+  };
+
+  function openImportLineasModal(solicitudId) {
+    milSolicitudId = solicitudId;
+    const sol = solicitudesById[solicitudId];
+    document.getElementById('mil-title').textContent = `Importar líneas — ${sol?.referencia ?? ''}`;
+    document.getElementById('mil-error').style.display = 'none';
+    document.getElementById('mil-file').value = '';
+    document.getElementById('mil-step-file').style.display = 'block';
+    document.getElementById('mil-step-mapping').style.display = 'none';
+    document.getElementById('mil-step-progress').style.display = 'none';
+    document.getElementById('mil-analyze-btn').style.display = 'inline-block';
+    document.getElementById('mil-import-btn').style.display = 'none';
+    openModal('modal-import-lineas');
+  }
+
+  document.getElementById('mil-analyze-btn').addEventListener('click', () => {
+    const fileInput = document.getElementById('mil-file');
+    const errEl = document.getElementById('mil-error');
+    errEl.style.display = 'none';
+    const file = fileInput.files[0];
+    if (!file) { errEl.textContent = 'Elegí un archivo primero.'; errEl.style.display = 'block'; return; }
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const wb = XLSX.read(evt.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        if (!rows.length) { errEl.textContent = 'El archivo no tiene filas de datos.'; errEl.style.display = 'block'; return; }
+
+        milRows = rows;
+        const headers = Object.keys(rows[0]);
+        const guesses = {
+          codigo: guessColumn(headers, ['codigo', 'código', 'sku']),
+          descripcion: guessColumn(headers, ['descripcion', 'descripción', 'producto', 'nombre']),
+          medida: guessColumn(headers, ['medida', 'size']),
+          marca: guessColumn(headers, ['marca', 'brand']),
+          categoria: guessColumn(headers, ['categoria', 'categoría', 'rubro', 'segmento']),
+          gama: guessColumn(headers, ['gama']),
+          cantidad: guessColumn(headers, ['cantidad', 'qty', 'cant']),
+          precio: guessColumn(headers, ['precio', 'price']),
+        };
+
+        Object.entries(milFieldSelects).forEach(([key, selectId]) => {
+          const select = document.getElementById(selectId);
+          const isRequired = key === 'cantidad';
+          select.innerHTML = (isRequired ? '' : '<option value="">— No importar —</option>') +
+            headers.map(h => `<option value="${h}" ${guesses[key] === h ? 'selected' : ''}>${h}</option>`).join('');
+        });
+
+        document.getElementById('mil-row-count').textContent = rows.length;
+        document.getElementById('mil-step-file').style.display = 'none';
+        document.getElementById('mil-step-mapping').style.display = 'block';
+        document.getElementById('mil-analyze-btn').style.display = 'none';
+        document.getElementById('mil-import-btn').style.display = 'inline-block';
+      } catch (err) {
+        errEl.textContent = 'No se pudo leer el archivo. ¿Es un Excel válido?';
+        errEl.style.display = 'block';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  document.getElementById('mil-import-btn').addEventListener('click', async () => {
+    const mapping = Object.fromEntries(Object.entries(milFieldSelects).map(([k, id]) => [k, document.getElementById(id).value]));
+    const errEl = document.getElementById('mil-error');
+    errEl.style.display = 'none';
+
+    if (!mapping.cantidad) { errEl.textContent = 'Tenés que mapear la columna Cantidad.'; errEl.style.display = 'block'; return; }
+    if (!mapping.codigo && !mapping.descripcion) { errEl.textContent = 'Mapeá al menos Código o Descripción para poder identificar los productos.'; errEl.style.display = 'block'; return; }
+
+    document.getElementById('mil-step-mapping').style.display = 'none';
+    document.getElementById('mil-step-progress').style.display = 'block';
+    document.getElementById('mil-import-btn').style.display = 'none';
+    document.getElementById('mil-progress-text').textContent = 'Cargando catálogo…';
+
+    // Traer catálogo completo una sola vez para matchear por código/descripción
+    const { data: catalogo } = await supabaseClient.from('productos').select('id, codigo, descripcion').limit(10000);
+    const porCodigo = new Map();
+    const porDescripcion = new Map();
+    (catalogo ?? []).forEach(p => {
+      if (p.codigo) porCodigo.set(String(p.codigo).trim().toLowerCase(), p.id);
+      if (p.descripcion) porDescripcion.set(String(p.descripcion).trim().toLowerCase(), p.id);
+    });
+
+    const filasValidas = milRows.map(row => {
+      const cantidad = Number(row[mapping.cantidad]);
+      if (!cantidad || cantidad <= 0) return null;
+      return {
+        codigo: mapping.codigo ? String(row[mapping.codigo] ?? '').trim() : '',
+        descripcion: mapping.descripcion ? String(row[mapping.descripcion] ?? '').trim() : '',
+        medida: mapping.medida ? String(row[mapping.medida] ?? '').trim() : '',
+        marca: mapping.marca ? String(row[mapping.marca] ?? '').trim() : '',
+        categoria: mapping.categoria ? String(row[mapping.categoria] ?? '').trim() : '',
+        gama: mapping.gama ? String(row[mapping.gama] ?? '').trim() : '',
+        cantidad,
+        precio_unitario: mapping.precio && row[mapping.precio] !== '' ? Number(row[mapping.precio]) : null,
+      };
+    }).filter(Boolean);
+
+    if (!filasValidas.length) {
+      errEl.textContent = 'No se encontraron filas válidas con cantidad mayor a 0.';
+      errEl.style.display = 'block';
+      document.getElementById('mil-step-mapping').style.display = 'block';
+      document.getElementById('mil-step-progress').style.display = 'none';
+      document.getElementById('mil-import-btn').style.display = 'inline-block';
+      return;
+    }
+
+    // Resolver producto_id: por código, luego por descripción, si no existe se crea
+    document.getElementById('mil-progress-text').textContent = 'Resolviendo productos…';
+    const productosNuevos = [];
+    const resueltas = filasValidas.map(f => {
+      let productoId = null;
+      if (f.codigo && porCodigo.has(f.codigo.toLowerCase())) productoId = porCodigo.get(f.codigo.toLowerCase());
+      else if (f.descripcion && porDescripcion.has(f.descripcion.toLowerCase())) productoId = porDescripcion.get(f.descripcion.toLowerCase());
+
+      if (!productoId && (f.codigo || f.descripcion)) {
+        productosNuevos.push(f);
+      }
+      return { ...f, producto_id: productoId };
+    });
+
+    // Crear productos nuevos que no matchearon (dedup por código+descripción dentro del mismo archivo)
+    const nuevosUnicos = new Map();
+    productosNuevos.forEach(f => {
+      const key = (f.codigo || '') + '|' + (f.descripcion || '');
+      if (!nuevosUnicos.has(key)) nuevosUnicos.set(key, f);
+    });
+
+    if (nuevosUnicos.size) {
+      document.getElementById('mil-progress-text').textContent = `Creando ${nuevosUnicos.size} productos nuevos en el catálogo…`;
+      const payloadNuevos = [...nuevosUnicos.values()].map(f => ({
+        codigo: f.codigo || null,
+        descripcion: f.descripcion || f.codigo,
+        medida: f.medida || null,
+        marca: f.marca || null,
+        categoria: f.categoria || null,
+        gama: f.gama || null,
+      }));
+      const { data: creados, error: errCrear } = await supabaseClient.from('productos').insert(payloadNuevos).select('id, codigo, descripcion');
+      if (errCrear) {
+        errEl.textContent = 'No se pudieron crear los productos nuevos detectados.';
+        errEl.style.display = 'block';
+        document.getElementById('mil-step-progress').style.display = 'none';
+        document.getElementById('mil-step-mapping').style.display = 'block';
+        document.getElementById('mil-import-btn').style.display = 'inline-block';
+        return;
+      }
+      (creados ?? []).forEach(p => {
+        if (p.codigo) porCodigo.set(String(p.codigo).trim().toLowerCase(), p.id);
+        if (p.descripcion) porDescripcion.set(String(p.descripcion).trim().toLowerCase(), p.id);
+      });
+    }
+
+    // Volver a resolver con el catálogo ya actualizado
+    const lineasFinal = resueltas.map(f => {
+      let productoId = f.producto_id;
+      if (!productoId && f.codigo && porCodigo.has(f.codigo.toLowerCase())) productoId = porCodigo.get(f.codigo.toLowerCase());
+      if (!productoId && f.descripcion && porDescripcion.has(f.descripcion.toLowerCase())) productoId = porDescripcion.get(f.descripcion.toLowerCase());
+      return { producto_id: productoId, cantidad: f.cantidad, precio_unitario: f.precio_unitario };
+    }).filter(l => l.producto_id);
+
+    document.getElementById('mil-progress-text').textContent = `Importando ${lineasFinal.length} líneas…`;
+
+    const chunkSize = 300;
+    let imported = 0;
+    let failed = 0;
+    for (let i = 0; i < lineasFinal.length; i += chunkSize) {
+      const chunk = lineasFinal.slice(i, i + chunkSize).map(l => ({ ...l, solicitud_id: milSolicitudId }));
+      const { error } = await supabaseClient.from('solicitud_lineas').insert(chunk);
+      if (error) failed += chunk.length; else imported += chunk.length;
+    }
+
+    document.getElementById('mil-progress-text').textContent =
+      failed ? `Listo con errores: ${imported} líneas importadas, ${failed} fallaron.` : `Importación completa: ${imported} líneas agregadas.`;
+
+    showToast(failed ? 'Importación terminada con errores' : 'Líneas importadas', failed ? 'error' : 'success');
+    loadLineasSolicitud(milSolicitudId);
+
+    setTimeout(() => closeModal('modal-import-lineas'), 1600);
+  });
+
+  // ==================================================
   // COMPRAS (Solicitud -> Orden de compra -> Proforma -> Factura)
   // ==================================================
   const ETAPAS_COMPRA = [
@@ -1237,6 +1502,7 @@
         ${renderCompraTrack(sol)}
 
         <span class="docs-toggle" data-lineas-toggle="${sol.id}">📦 Ver líneas</span>
+        <span class="docs-toggle" data-importar-lineas="${sol.id}" style="margin-left:1rem;">📥 Importar líneas desde Excel</span>
         <div class="docs-panel" id="lineas-panel-${sol.id}">
           <div class="docs-list" id="lineas-list-${sol.id}"><div class="loading-text">Cargando…</div></div>
           <div class="pline-add-row">
@@ -1283,6 +1549,9 @@
           setupPlineAutocomplete(el.dataset.lineasToggle);
         }
       });
+    });
+    cont.querySelectorAll('[data-importar-lineas]').forEach(el => {
+      el.addEventListener('click', () => openImportLineasModal(el.dataset.importarLineas));
     });
     cont.querySelectorAll('[data-agregar-linea]').forEach(btn => {
       btn.addEventListener('click', () => agregarLineaSolicitud(btn.dataset.agregarLinea));
