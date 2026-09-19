@@ -635,7 +635,16 @@
       <input type="hidden" id="msol-id">
       <div class="form-row">
         <div class="field"><label>Empresa compradora</label><select id="msol-empresa" required></select></div>
-        <div class="field"><label>Proveedor</label><select id="msol-proveedor"><option value="">— A definir —</option></select></div>
+        <div class="field"><label>Proveedor</label><select id="msol-proveedor" required><option value="">— Elegir —</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Línea de producto</label>
+          <select id="msol-linea-producto" required>
+            <option value="">— Elegir —</option>
+            <option>TBR</option><option>PCR</option><option>LTR</option>
+          </select>
+        </div>
       </div>
       <div class="form-row">
         <div class="field"><label>Condición de pago</label><input type="text" id="msol-condicion-pago" placeholder="Ej: 30% anticipo, 70% CI"></div>
@@ -739,6 +748,7 @@
     <form id="mv-form">
       <input type="hidden" id="mv-id">
       <div class="field"><label>Nombre</label><input type="text" id="mv-nombre" required></div>
+      <div class="field"><label>Código corto (para la referencia, ej: EVG, TH, HK)</label><input type="text" id="mv-codigo" placeholder="Ej: EVG" style="text-transform:uppercase;"></div>
       <div class="form-row">
         <div class="field"><label>País</label><input type="text" id="mv-pais"></div>
         <div class="field"><label>Contacto</label><input type="text" id="mv-contacto"></div>
@@ -1491,7 +1501,7 @@
             <h3>${sol.referencia}</h3>
             <div class="meta">
               <strong>${sol.empresas?.nombre ?? '—'}</strong> · ${sol.proveedores?.nombre ?? 'proveedor a definir'}
-              ${sol.condicion_pago ? ` · ${sol.condicion_pago}` : ''}${sol.incoterm ? ` · ${sol.incoterm}` : ''}
+              ${sol.linea_producto ? ` · ${sol.linea_producto}` : ''}${sol.condicion_pago ? ` · ${sol.condicion_pago}` : ''}${sol.incoterm ? ` · ${sol.incoterm}` : ''}
               · ${formatFecha(sol.fecha)}
             </div>
           </div>
@@ -1666,29 +1676,34 @@
   async function openSolicitudModal(sol) {
     const [empresas, proveedores, puertos] = await Promise.all([ensureEmpresasCache(), ensureProveedoresCache(), ensurePuertosCache()]);
     fillSelect(document.getElementById('msol-empresa'), empresas, null);
-    fillSelect(document.getElementById('msol-proveedor'), proveedores, '— A definir —');
+    fillSelect(document.getElementById('msol-proveedor'), proveedores, '— Elegir —');
     fillPuertoSelect(document.getElementById('msol-puerto-destino'), puertos, sol ? sol.puerto_destino : null);
     document.getElementById('msol-puerto-nuevo-wrap').style.display = 'none';
     document.getElementById('msol-puerto-nuevo').value = '';
     document.getElementById('msol-form').reset();
     document.getElementById('msol-error').style.display = 'none';
 
+    const bloqueablesSiEdita = ['msol-empresa', 'msol-proveedor', 'msol-linea-producto'];
+
     if (sol) {
       document.getElementById('msol-title').textContent = `Editar ${sol.referencia}`;
       document.getElementById('msol-id').value = sol.id;
       document.getElementById('msol-empresa').value = sol.empresa_compradora_id;
       document.getElementById('msol-proveedor').value = sol.proveedor_id ?? '';
+      document.getElementById('msol-linea-producto').value = sol.linea_producto ?? '';
       document.getElementById('msol-condicion-pago').value = sol.condicion_pago ?? '';
       document.getElementById('msol-puerto-destino').value = sol.puerto_destino ?? '';
       document.getElementById('msol-incoterm').value = sol.incoterm ?? '';
       document.getElementById('msol-fecha').value = sol.fecha ?? todayStr();
       document.getElementById('msol-notas').value = sol.notas ?? '';
       document.getElementById('msol-delete-btn').style.display = 'inline-block';
+      bloqueablesSiEdita.forEach(id => document.getElementById(id).disabled = true);
     } else {
       document.getElementById('msol-title').textContent = 'Nueva solicitud';
       document.getElementById('msol-id').value = '';
       document.getElementById('msol-fecha').value = todayStr();
       document.getElementById('msol-delete-btn').style.display = 'none';
+      bloqueablesSiEdita.forEach(id => document.getElementById(id).disabled = false);
     }
     openModal('modal-solicitud');
   }
@@ -1719,6 +1734,7 @@
     const basePayload = {
       empresa_compradora_id: document.getElementById('msol-empresa').value,
       proveedor_id: document.getElementById('msol-proveedor').value || null,
+      linea_producto: document.getElementById('msol-linea-producto').value || null,
       condicion_pago: document.getElementById('msol-condicion-pago').value.trim() || null,
       puerto_destino: puertoDestino || null,
       incoterm: document.getElementById('msol-incoterm').value || null,
@@ -1735,16 +1751,20 @@
       return;
     }
 
-    const { data: refData, error: errRef } = await supabaseClient.rpc('fn_next_referencia_solicitud', { p_empresa_id: basePayload.empresa_compradora_id });
-    if (errRef || !refData || !refData.length) { errEl.textContent = 'No se pudo generar la referencia.'; errEl.style.display = 'block'; return; }
+    const { data: referencia, error: errRef } = await supabaseClient.rpc('fn_generar_referencia_solicitud', {
+      p_empresa_id: basePayload.empresa_compradora_id,
+      p_proveedor_id: basePayload.proveedor_id,
+      p_linea_producto: basePayload.linea_producto,
+    });
+    if (errRef || !referencia) { errEl.textContent = errRef?.message || 'No se pudo generar la referencia.'; errEl.style.display = 'block'; return; }
 
     const { error } = await supabaseClient.from('solicitudes_compra').insert([{
-      ...basePayload, referencia: refData[0].referencia, numero_solicitud: refData[0].numero, etapa: 'solicitud',
+      ...basePayload, referencia, etapa: 'solicitud',
     }]);
     if (error) { errEl.textContent = 'No se pudo crear la solicitud.'; errEl.style.display = 'block'; return; }
 
     closeModal('modal-solicitud');
-    showToast(`Solicitud ${refData[0].referencia} creada`);
+    showToast(`Solicitud ${referencia} creada`);
     loadComprasView();
   });
 
@@ -2215,6 +2235,7 @@
       document.getElementById('mv-title').textContent = 'Editar proveedor';
       document.getElementById('mv-id').value = prov.id;
       document.getElementById('mv-nombre').value = prov.nombre ?? '';
+      document.getElementById('mv-codigo').value = prov.codigo ?? '';
       document.getElementById('mv-pais').value = prov.pais ?? '';
       document.getElementById('mv-contacto').value = prov.contacto ?? '';
       document.getElementById('mv-telefono').value = prov.telefono ?? '';
@@ -2235,6 +2256,7 @@
     const id = document.getElementById('mv-id').value;
     const payload = {
       nombre: document.getElementById('mv-nombre').value.trim(),
+      codigo: document.getElementById('mv-codigo').value.trim().toUpperCase() || null,
       pais: document.getElementById('mv-pais').value.trim() || null,
       contacto: document.getElementById('mv-contacto').value.trim() || null,
       telefono: document.getElementById('mv-telefono').value.trim() || null,
