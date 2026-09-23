@@ -223,6 +223,23 @@
     padding: 0.5rem 0.7rem; border: 1.5px solid var(--gray-border); border-radius: 8px; font-size: 0.83rem;
   }
 
+  /* Gastos de importación */
+  .gasto-panel { display: none; margin-top: 1rem; }
+  .gasto-panel.open { display: block; }
+  .gasto-section-title { font-size: 0.82rem; font-weight: 700; margin: 1.1rem 0 0.5rem; }
+  .gasto-summary { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.4rem; }
+  .gasto-summary .chip { font-size: 0.75rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 999px; background: var(--gray-light); color: var(--ink); }
+  .gasto-summary .chip.warn { background: var(--red-bg); color: var(--red); }
+  .gasto-tax-table th, .gasto-tax-table td { padding: 0.4rem 0.5rem; font-size: 0.82rem; }
+  .gasto-tax-table input { width: 100%; padding: 0.4rem 0.5rem; border: 1.5px solid var(--gray-border); border-radius: 6px; font-size: 0.82rem; }
+  .gasto-tax-table .recalc-btn { padding: 0.3rem 0.5rem; font-size: 0.75rem; }
+  .gasto-readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-top: 0.9rem; padding: 0.9rem; background: var(--gray-light); border-radius: 10px; }
+  .gasto-readouts .item .label { font-size: 0.68rem; color: var(--gray-mid); margin-bottom: 0.2rem; }
+  .gasto-readouts .item .value { font-family: var(--font-display); font-weight: 700; font-size: 1rem; }
+  .g-destino-row { display: grid; grid-template-columns: 1.4fr 100px 90px 1fr 1fr 32px; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; }
+  .g-destino-row input, .g-destino-row select { padding: 0.5rem 0.6rem; border: 1.5px solid var(--gray-border); border-radius: 8px; font-size: 0.82rem; width: 100%; }
+  @media (max-width: 900px) { .g-destino-row { grid-template-columns: 1fr; } }
+
   /* Líneas de solicitud (productos) */
   .pline-add-row { display: grid; grid-template-columns: 1fr 100px 130px 90px; gap: 0.5rem; margin-bottom: 0.8rem; align-items: start; }
   @media (max-width: 700px) { .pline-add-row { grid-template-columns: 1fr; } }
@@ -305,6 +322,7 @@
       <div class="nav-item" data-view="importaciones"><span class="nav-dot"></span>Importaciones</div>
       <div class="nav-item" data-view="transferencias"><span class="nav-dot"></span>Transferencias</div>
       <div class="nav-item" data-view="pagos"><span class="nav-dot"></span>Pagos</div>
+      <div class="nav-item" data-view="gastos"><span class="nav-dot"></span>Gastos</div>
       <div class="nav-item" data-view="saldos"><span class="nav-dot"></span>Saldos</div>
       <div class="nav-item" data-view="proveedores"><span class="nav-dot"></span>Proveedores</div>
       <div class="nav-item" data-view="productos"><span class="nav-dot"></span>Productos</div>
@@ -501,6 +519,27 @@
             </table>
           </div>
         </div>
+      </div>
+
+      <!-- ===================== GASTOS ===================== -->
+      <div class="view" id="view-gastos">
+        <div class="main-header"><div><h1>Gastos</h1><p>Costo de importación (VEP estimado) por embarque</p></div></div>
+
+        <div class="panel-wide-head" style="background:var(--white); border:1px solid var(--gray-border); border-radius:12px; margin-bottom:1.25rem;">
+          <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:flex-end;">
+            <div>
+              <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Empresa</label>
+              <select id="gto-filtro-empresa" class="search-input"><option value="">Todas</option></select>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Proveedor</label>
+              <select id="gto-filtro-proveedor" class="search-input"><option value="">Todos</option></select>
+            </div>
+            <button type="button" class="btn-secondary" id="gto-filtros-limpiar">Limpiar filtros</button>
+          </div>
+        </div>
+
+        <div id="lista-gastos"><div class="loading-text">Cargando…</div></div>
       </div>
 
       <!-- ===================== SALDOS ===================== -->
@@ -930,6 +969,7 @@
     importaciones: loadImportacionesView,
     transferencias: loadTransferenciasView,
     pagos: loadPagosView,
+    gastos: loadGastosView,
     saldos: loadSaldosView,
     proveedores: loadProveedoresView,
     productos: loadProductosView,
@@ -2097,6 +2137,8 @@
         <span class="track-toggle" data-track-toggle="${imp.id}">📍 Ver seguimiento</span>
         ${renderImportTrack(imp)}
         <span class="docs-toggle" data-docs-toggle="${imp.id}">📎 Ver documentos</span>
+        <span class="docs-toggle" data-toggle-gasto-embed="${imp.id}" style="margin-left:1rem;">💰 Ver gastos de importación</span>
+        <div class="gasto-panel" id="gasto-panel-embed-${imp.id}"></div>
         <div class="docs-panel" id="docs-panel-${imp.id}">
           <div class="docs-list" id="docs-list-${imp.id}"><div class="loading-text">Cargando…</div></div>
           <div class="doc-upload-row">
@@ -2124,6 +2166,9 @@
         panel.classList.toggle('open');
         if (panel.classList.contains('open')) loadDocumentos(el.dataset.docsToggle);
       });
+    });
+    cont.querySelectorAll('[data-toggle-gasto-embed]').forEach(el => {
+      el.addEventListener('click', () => toggleGastoPanel(el.dataset.toggleGastoEmbed, document.getElementById('gasto-panel-embed-' + el.dataset.toggleGastoEmbed)));
     });
     cont.querySelectorAll('[data-subir-doc]').forEach(btn => {
       btn.addEventListener('click', () => subirDocumento(btn.dataset.subirDoc));
@@ -2289,6 +2334,295 @@
     showToast('Importación eliminada');
     loadImportacionesView();
     loadDashboard();
+  });
+
+  // ==================================================
+  // GASTOS DE IMPORTACIÓN (VEP estimado)
+  // ==================================================
+  const TAX_FIELDS = [
+    { key: 'derechos', alicuota: '.g-derechos-alicuota', monto: '.g-derechos-monto', label: 'Derechos Importación' },
+    { key: 'tasa', alicuota: '.g-tasa-alicuota', monto: '.g-tasa-monto', label: 'Tasa Estadística' },
+    { key: 'iva', alicuota: '.g-iva-alicuota', monto: '.g-iva-monto', label: 'IVA', recuperable: true },
+    { key: 'ivaadic', alicuota: '.g-ivaadic-alicuota', monto: '.g-ivaadic-monto', label: 'IVA Adicional', recuperable: true },
+    { key: 'ganancias', alicuota: '.g-ganancias-alicuota', monto: '.g-ganancias-monto', label: 'Ganancias', recuperable: true },
+    { key: 'iibb', alicuota: '.g-iibb-alicuota', monto: '.g-iibb-monto', label: 'Ingresos Brutos', recuperable: true },
+  ];
+
+  function numVal(containerEl, cls) { return Number(containerEl.querySelector(cls)?.value) || 0; }
+  function strVal(containerEl, cls) { return containerEl.querySelector(cls)?.value.trim() || ''; }
+
+  async function ensureGastoParaImportacion(importacionId) {
+    const { data: existing } = await supabaseClient.from('gastos_importacion').select('*').eq('importacion_id', importacionId).maybeSingle();
+    if (existing) return existing;
+
+    let fobSugerido = 0;
+    const { data: solicitudes } = await supabaseClient.from('solicitudes_compra').select('id').eq('importacion_id', importacionId);
+    if (solicitudes && solicitudes.length) {
+      const ids = solicitudes.map(s => s.id);
+      const { data: lineas } = await supabaseClient.from('solicitud_lineas').select('cantidad, precio_unitario').in('solicitud_id', ids);
+      fobSugerido = (lineas ?? []).reduce((acc, l) => acc + (Number(l.cantidad) || 0) * (Number(l.precio_unitario) || 0), 0);
+    }
+
+    const { data: created } = await supabaseClient.from('gastos_importacion').insert([{ importacion_id: importacionId, fob: fobSugerido }]).select().single();
+    return created;
+  }
+
+  function renderGastoCalculatorHTML(gasto, lineasDestino) {
+    const taxRow = (f) => `
+      <tr>
+        <td>${f.label}${f.recuperable ? ' <span class="badge pagado" style="font-size:0.65rem;">recuperable</span>' : ''}</td>
+        <td><input type="number" step="0.001" class="${f.alicuota.slice(1)}" value="${gasto[f.key + '_alicuota'] ?? 0}"></td>
+        <td><input type="number" step="0.01" class="${f.monto.slice(1)}" value="${gasto[f.key + '_monto'] ?? 0}"></td>
+        <td><button type="button" class="action-btn recalc-btn" data-action="recalc-${f.key}">↻</button></td>
+      </tr>`;
+
+    return `
+      <div class="form-row-3">
+        <div class="field"><label>FOB (USD)</label><input type="number" step="0.01" class="g-fob" value="${gasto.fob ?? 0}"></div>
+        <div class="field"><label>Proveedor FOB</label><input type="text" class="g-fob-proveedor" value="${gasto.fob_proveedor ?? ''}"></div>
+        <div class="field"><label>Comprobante FOB</label><input type="text" class="g-fob-comprobante" value="${gasto.fob_comprobante ?? ''}"></div>
+      </div>
+      <div class="form-row-3">
+        <div class="field"><label>Flete (USD)</label><input type="number" step="0.01" class="g-flete" value="${gasto.flete ?? 0}"></div>
+        <div class="field"><label>Proveedor flete</label><input type="text" class="g-flete-proveedor" value="${gasto.flete_proveedor ?? ''}"></div>
+        <div class="field"><label>Comprobante flete</label><input type="text" class="g-flete-comprobante" value="${gasto.flete_comprobante ?? ''}"></div>
+      </div>
+      <div class="form-row-3">
+        <div class="field"><label>Seguro (USD)</label><input type="number" step="0.01" class="g-seguro" value="${gasto.seguro ?? 0}"></div>
+        <div class="field"><label>Proveedor seguro</label><input type="text" class="g-seguro-proveedor" value="${gasto.seguro_proveedor ?? ''}"></div>
+        <div class="field"><label>Comprobante seguro</label><input type="text" class="g-seguro-comprobante" value="${gasto.seguro_comprobante ?? ''}"></div>
+      </div>
+
+      <div class="gasto-section-title">Impuestos de importación</div>
+      <div class="table-scroll">
+        <table class="gasto-tax-table">
+          <thead><tr><th>Concepto</th><th>Alícuota %</th><th>Monto (USD)</th><th></th></tr></thead>
+          <tbody>
+            ${taxRow(TAX_FIELDS[0])}
+            ${taxRow(TAX_FIELDS[1])}
+            <tr><td>Arancel SIM</td><td>—</td><td><input type="number" step="0.01" class="g-arancel-monto" value="${gasto.arancel_sim_monto ?? 0}"></td><td></td></tr>
+            ${taxRow(TAX_FIELDS[2])}
+            ${taxRow(TAX_FIELDS[3])}
+            ${taxRow(TAX_FIELDS[4])}
+            ${taxRow(TAX_FIELDS[5])}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="gasto-section-title">Gastos destino (lista libre)</div>
+      <div class="g-destino-lineas">
+        ${lineasDestino.map(l => destinoRowHTML(l)).join('')}
+      </div>
+      <button type="button" class="btn-secondary" data-action="add-destino">+ Agregar línea de gasto destino</button>
+
+      <div class="form-row-3" style="margin-top:1rem;">
+        <div class="field"><label>Código de despacho</label><input type="text" class="g-despacho-codigo" value="${gasto.total_despacho_codigo ?? ''}"></div>
+        <div class="field"><label>Tipo de cambio (TC)</label><input type="number" step="0.0001" class="g-tc" value="${gasto.tipo_cambio ?? ''}"></div>
+      </div>
+
+      <div class="gasto-readouts">
+        <div class="item"><div class="label">CIF</div><div class="value g-cif">$ 0</div></div>
+        <div class="item"><div class="label">Total impuestos</div><div class="value g-total-impuestos">$ 0</div></div>
+        <div class="item"><div class="label">Se recupera</div><div class="value g-recuperable">$ 0</div></div>
+        <div class="item"><div class="label">Total gastos destino</div><div class="value g-total-destino">$ 0</div></div>
+        <div class="item"><div class="label">Total a pagar</div><div class="value g-total-pagar">$ 0</div></div>
+        <div class="item"><div class="label">Costo sin IVA contenedor</div><div class="value g-costo-sin-iva">$ 0</div></div>
+        <div class="item"><div class="label">% sobre FOB</div><div class="value g-markup-pct">0%</div></div>
+        <div class="item"><div class="label">$ ARS a girar (despacho)</div><div class="value g-monto-ars-despacho">—</div></div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn-primary" data-action="guardar">Guardar gastos</button>
+      </div>`;
+  }
+
+  function destinoRowHTML(l = {}) {
+    return `
+      <div class="g-destino-row">
+        <input type="text" class="g-destino-concepto" placeholder="Concepto (ej: Locksley FWD)" value="${(l.concepto ?? '').replace(/"/g, '&quot;')}">
+        <input type="number" step="0.01" class="g-destino-monto" placeholder="Monto" value="${l.monto ?? ''}">
+        <select class="g-destino-moneda"><option ${(!l.moneda || l.moneda === 'USD') ? 'selected' : ''}>USD</option><option ${l.moneda === 'ARS' ? 'selected' : ''}>ARS</option></select>
+        <input type="text" class="g-destino-proveedor" placeholder="Proveedor" value="${(l.proveedor ?? '').replace(/"/g, '&quot;')}">
+        <input type="text" class="g-destino-comprobante" placeholder="Comprobante" value="${(l.comprobante ?? '').replace(/"/g, '&quot;')}">
+        <button type="button" class="action-btn" data-action="remove-destino">×</button>
+      </div>`;
+  }
+
+  function recalcGastoTotales(containerEl) {
+    const fob = numVal(containerEl, '.g-fob');
+    const flete = numVal(containerEl, '.g-flete');
+    const seguro = numVal(containerEl, '.g-seguro');
+    const cif = fob + flete + seguro;
+    containerEl.querySelector('.g-cif').textContent = formatUSD(cif);
+
+    const derechos = numVal(containerEl, '.g-derechos-monto');
+    const tasa = numVal(containerEl, '.g-tasa-monto');
+    const arancel = numVal(containerEl, '.g-arancel-monto');
+    const iva = numVal(containerEl, '.g-iva-monto');
+    const ivaadic = numVal(containerEl, '.g-ivaadic-monto');
+    const ganancias = numVal(containerEl, '.g-ganancias-monto');
+    const iibb = numVal(containerEl, '.g-iibb-monto');
+    const totalImpuestos = derechos + tasa + arancel + iva + ivaadic + ganancias + iibb;
+    const recuperable = iva + ivaadic + ganancias + iibb;
+    containerEl.querySelector('.g-total-impuestos').textContent = formatUSD(totalImpuestos);
+    containerEl.querySelector('.g-recuperable').textContent = formatUSD(recuperable);
+
+    const tc = numVal(containerEl, '.g-tc');
+    const totalDestino = [...containerEl.querySelectorAll('.g-destino-row')].reduce((acc, row) => {
+      const monto = Number(row.querySelector('.g-destino-monto').value) || 0;
+      const moneda = row.querySelector('.g-destino-moneda').value;
+      return acc + (moneda === 'ARS' && tc ? monto / tc : moneda === 'ARS' ? 0 : monto);
+    }, 0);
+    containerEl.querySelector('.g-total-destino').textContent = formatUSD(totalDestino);
+
+    const totalPagar = cif + totalImpuestos + totalDestino;
+    const costoSinIva = totalPagar - recuperable;
+    const markupPct = fob > 0 ? ((costoSinIva - fob) / fob * 100) : 0;
+    containerEl.querySelector('.g-total-pagar').textContent = formatUSD(totalPagar);
+    containerEl.querySelector('.g-costo-sin-iva').textContent = formatUSD(costoSinIva);
+    containerEl.querySelector('.g-markup-pct').textContent = markupPct.toFixed(2) + '%';
+
+    const montoArs = tc ? totalImpuestos * tc : 0;
+    containerEl.querySelector('.g-monto-ars-despacho').textContent = tc
+      ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(montoArs)
+      : '—';
+  }
+
+  function doRecalcTax(containerEl, key) {
+    const field = TAX_FIELDS.find(f => f.key === key);
+    if (!field) return;
+    const cif = numVal(containerEl, '.g-fob') + numVal(containerEl, '.g-flete') + numVal(containerEl, '.g-seguro');
+    const alicuota = numVal(containerEl, field.alicuota);
+    containerEl.querySelector(field.monto).value = ((cif * alicuota) / 100).toFixed(2);
+    recalcGastoTotales(containerEl);
+  }
+
+  async function guardarGasto(containerEl, gastoId) {
+    const payload = {
+      fob: numVal(containerEl, '.g-fob'), fob_proveedor: strVal(containerEl, '.g-fob-proveedor') || null, fob_comprobante: strVal(containerEl, '.g-fob-comprobante') || null,
+      flete: numVal(containerEl, '.g-flete'), flete_proveedor: strVal(containerEl, '.g-flete-proveedor') || null, flete_comprobante: strVal(containerEl, '.g-flete-comprobante') || null,
+      seguro: numVal(containerEl, '.g-seguro'), seguro_proveedor: strVal(containerEl, '.g-seguro-proveedor') || null, seguro_comprobante: strVal(containerEl, '.g-seguro-comprobante') || null,
+      derechos_alicuota: numVal(containerEl, '.g-derechos-alicuota'), derechos_monto: numVal(containerEl, '.g-derechos-monto'),
+      tasa_estadistica_alicuota: numVal(containerEl, '.g-tasa-alicuota'), tasa_estadistica_monto: numVal(containerEl, '.g-tasa-monto'),
+      arancel_sim_monto: numVal(containerEl, '.g-arancel-monto'),
+      iva_alicuota: numVal(containerEl, '.g-iva-alicuota'), iva_monto: numVal(containerEl, '.g-iva-monto'),
+      iva_adicional_alicuota: numVal(containerEl, '.g-ivaadic-alicuota'), iva_adicional_monto: numVal(containerEl, '.g-ivaadic-monto'),
+      ganancias_alicuota: numVal(containerEl, '.g-ganancias-alicuota'), ganancias_monto: numVal(containerEl, '.g-ganancias-monto'),
+      ing_brutos_alicuota: numVal(containerEl, '.g-iibb-alicuota'), ing_brutos_monto: numVal(containerEl, '.g-iibb-monto'),
+      total_despacho_codigo: strVal(containerEl, '.g-despacho-codigo') || null,
+      tipo_cambio: numVal(containerEl, '.g-tc') || null,
+    };
+    const { error } = await supabaseClient.from('gastos_importacion').update(payload).eq('id', gastoId);
+    if (error) { showToast('No se pudo guardar los gastos', 'error'); return; }
+
+    const lineas = [...containerEl.querySelectorAll('.g-destino-row')].map(row => ({
+      gasto_importacion_id: gastoId,
+      concepto: row.querySelector('.g-destino-concepto').value.trim(),
+      monto: Number(row.querySelector('.g-destino-monto').value) || 0,
+      moneda: row.querySelector('.g-destino-moneda').value,
+      proveedor: row.querySelector('.g-destino-proveedor').value.trim() || null,
+      comprobante: row.querySelector('.g-destino-comprobante').value.trim() || null,
+    })).filter(l => l.concepto);
+
+    await supabaseClient.from('gastos_destino_lineas').delete().eq('gasto_importacion_id', gastoId);
+    if (lineas.length) await supabaseClient.from('gastos_destino_lineas').insert(lineas);
+
+    showToast('Gastos guardados');
+  }
+
+  function attachGastoCalculatorHandlers(containerEl, gastoId) {
+    containerEl.addEventListener('input', () => recalcGastoTotales(containerEl));
+    containerEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      if (action === 'add-destino') {
+        containerEl.querySelector('.g-destino-lineas').insertAdjacentHTML('beforeend', destinoRowHTML());
+        recalcGastoTotales(containerEl);
+      } else if (action === 'remove-destino') {
+        btn.closest('.g-destino-row').remove();
+        recalcGastoTotales(containerEl);
+      } else if (action.startsWith('recalc-')) {
+        doRecalcTax(containerEl, action.replace('recalc-', ''));
+      } else if (action === 'guardar') {
+        guardarGasto(containerEl, gastoId);
+      }
+    });
+  }
+
+  async function toggleGastoPanel(importacionId, panelEl) {
+    panelEl.classList.toggle('open');
+    if (!panelEl.classList.contains('open') || panelEl.dataset.loaded) return;
+    panelEl.innerHTML = `<div class="loading-text">Cargando…</div>`;
+    const gasto = await ensureGastoParaImportacion(importacionId);
+    const { data: lineasDestino } = await supabaseClient.from('gastos_destino_lineas').select('*').eq('gasto_importacion_id', gasto.id);
+    panelEl.innerHTML = renderGastoCalculatorHTML(gasto, lineasDestino ?? []);
+    attachGastoCalculatorHandlers(panelEl, gasto.id);
+    recalcGastoTotales(panelEl);
+    panelEl.dataset.loaded = '1';
+  }
+
+  async function loadGastosView() {
+    const [empresas, proveedores] = await Promise.all([ensureEmpresasCache(), ensureProveedoresCache()]);
+    fillSelect(document.getElementById('gto-filtro-empresa'), empresas, 'Todas');
+    fillSelect(document.getElementById('gto-filtro-proveedor'), proveedores, 'Todos');
+
+    const cont = document.getElementById('lista-gastos');
+    cont.innerHTML = `<div class="loading-text">Cargando…</div>`;
+
+    const empresaId = document.getElementById('gto-filtro-empresa').value;
+    const proveedorId = document.getElementById('gto-filtro-proveedor').value;
+
+    let query = supabaseClient.from('importaciones').select('*, empresas(nombre), proveedores(nombre)').order('fecha_pedido', { ascending: false });
+    if (empresaId) query = query.eq('empresa_compradora_id', empresaId);
+    if (proveedorId) query = query.eq('proveedor_id', proveedorId);
+    const { data: importaciones, error } = await query;
+    if (error || !importaciones) { cont.innerHTML = `<div class="placeholder-view">No se pudieron cargar las importaciones.</div>`; return; }
+
+    if (!importaciones.length) { cont.innerHTML = `<div class="placeholder-view"><h2>Sin importaciones</h2>Cargá una importación primero desde esa sección.</div>`; return; }
+
+    const { data: gastosExistentes } = await supabaseClient.from('gastos_importacion').select('*').in('importacion_id', importaciones.map(i => i.id));
+    const gastoPorImportacion = {};
+    (gastosExistentes ?? []).forEach(g => gastoPorImportacion[g.importacion_id] = g);
+
+    cont.innerHTML = importaciones.map(imp => {
+      const g = gastoPorImportacion[imp.id];
+      let resumen = '<span class="chip">Sin gastos cargados aún</span>';
+      if (g) {
+        const cif = Number(g.fob) + Number(g.flete) + Number(g.seguro);
+        const totalImpuestos = Number(g.derechos_monto) + Number(g.tasa_estadistica_monto) + Number(g.arancel_sim_monto) + Number(g.iva_monto) + Number(g.iva_adicional_monto) + Number(g.ganancias_monto) + Number(g.ing_brutos_monto);
+        const recuperable = Number(g.iva_monto) + Number(g.iva_adicional_monto) + Number(g.ganancias_monto) + Number(g.ing_brutos_monto);
+        const totalPagar = cif + totalImpuestos;
+        const costoSinIva = totalPagar - recuperable;
+        resumen = `<span class="chip">Total a pagar: ${formatUSD(totalPagar)}</span><span class="chip warn">Costo sin IVA: ${formatUSD(costoSinIva)}</span>`;
+      }
+      return `
+        <div class="import-card">
+          <div class="import-card-head">
+            <div>
+              <h3>${imp.descripcion}</h3>
+              <div class="meta"><strong>${imp.empresas?.nombre ?? '—'}</strong> · ${imp.proveedores?.nombre ?? '—'} · ${formatFecha(imp.fecha_pedido)}</div>
+              <div class="gasto-summary">${resumen}</div>
+            </div>
+            <div class="import-card-actions">
+              <button class="action-btn" data-toggle-gasto="${imp.id}">Ver / editar gastos</button>
+            </div>
+          </div>
+          <div class="gasto-panel" id="gasto-panel-view-${imp.id}"></div>
+        </div>`;
+    }).join('');
+
+    cont.querySelectorAll('[data-toggle-gasto]').forEach(btn => {
+      btn.addEventListener('click', () => toggleGastoPanel(btn.dataset.toggleGasto, document.getElementById('gasto-panel-view-' + btn.dataset.toggleGasto)));
+    });
+  }
+
+  document.getElementById('gto-filtro-empresa').addEventListener('change', loadGastosView);
+  document.getElementById('gto-filtro-proveedor').addEventListener('change', loadGastosView);
+  document.getElementById('gto-filtros-limpiar').addEventListener('click', () => {
+    document.getElementById('gto-filtro-empresa').value = '';
+    document.getElementById('gto-filtro-proveedor').value = '';
+    loadGastosView();
   });
 
   // ==================================================
