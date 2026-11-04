@@ -3990,7 +3990,11 @@
     const imp = importacionesById[importacionId];
     if (!imp || imp.etapa === targetEtapa) return;
 
-    if (targetEtapa === 'deposito_fiscal' && imp.etapa !== 'deposito_fiscal') {
+    // Retroceder de etapa nunca pide nada: los requisitos aplican solo al avanzar.
+    const _ord = ETAPAS_IMPORTACION.map(e => e.key);
+    const retrocede = _ord.indexOf(targetEtapa) < _ord.indexOf(imp.etapa);
+
+    if (!retrocede && targetEtapa === 'deposito_fiscal' && imp.etapa !== 'deposito_fiscal') {
       pendingFiscalImportacionId = importacionId;
       document.getElementById('mfi-error').style.display = 'none';
       document.getElementById('mfi-fecha').value = imp.fecha_ingreso_fiscal || todayStr();
@@ -4001,7 +4005,7 @@
       return;
     }
 
-    if (targetEtapa === 'embarcado' && imp.etapa !== 'embarcado') {
+    if (!retrocede && targetEtapa === 'embarcado' && imp.etapa !== 'embarcado') {
       pendingFiscalImportacionId = importacionId;
       document.getElementById('mfw-error').style.display = 'none';
       document.getElementById('mfw-flete').value = '';
@@ -4013,7 +4017,7 @@
       return;
     }
 
-    if (targetEtapa === 'puerto' && imp.etapa !== 'puerto') {
+    if (!retrocede && targetEtapa === 'puerto' && imp.etapa !== 'puerto') {
       pendingFiscalImportacionId = importacionId;
       document.getElementById('mpi-error').style.display = 'none';
       document.getElementById('mpi-disponible').value = todayStr();
@@ -4025,7 +4029,7 @@
     }
 
     // Salir de "puerto" (hacia fiscal o hacia finalizado): todos los contenedores deben tener retiro+canal
-    if (imp.etapa === 'puerto' && targetEtapa !== 'puerto') {
+    if (!retrocede && imp.etapa === 'puerto' && targetEtapa !== 'puerto') {
       const { data: contenedores } = await supabaseClient.from('importacion_contenedores').select('fecha_retiro_puerto, canal').eq('importacion_id', importacionId);
       const incompleto = (contenedores ?? []).some(c => !c.fecha_retiro_puerto || !c.canal);
       if (incompleto) {
@@ -4036,7 +4040,7 @@
       }
     }
 
-    if (targetEtapa === 'finalizado') {
+    if (!retrocede && targetEtapa === 'finalizado') {
       if (imp.etapa === 'deposito_fiscal' && !imp.fecha_retiro_fiscal) {
         pendingFiscalImportacionId = importacionId;
         document.getElementById('mfr-error').style.display = 'none';
@@ -4080,7 +4084,7 @@
       }
     }
 
-    if (targetEtapa === 'finalizado' && imp.pais_destino === 'PY') {
+    if (!retrocede && targetEtapa === 'finalizado' && imp.pais_destino === 'PY') {
       const bundlePy = (await cargarGastosPYMap([importacionId]))[importacionId];
       let faltantePy = null;
       if (!bundlePy || !(Number(bundlePy.gpy.tipo_cambio_gs) > 0)) faltantePy = 'el tipo de cambio Gs/USD';
