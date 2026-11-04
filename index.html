@@ -675,6 +675,32 @@
   /* barra lateral fija: el pie (modo oscuro / cerrar sesión) no se va con el scroll */
   .sidebar { position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; }
   @media (max-width: 820px) { .sidebar { position: static; height: auto; align-self: stretch; } }
+
+  /* ---------- Planificación ---------- */
+  :root { --orange: #B45309; --orange-bg: #FFEDD5; }
+  :root[data-theme="dark"] { --orange: #FDBA74; --orange-bg: #3A1F0B; }
+  .kb-x-plan { background: var(--orange-bg); color: var(--orange); }
+  .kb-plan { display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.74rem; border-radius: 8px; padding: 0.3rem 0.55rem; background: var(--gray-light); color: var(--ink); }
+  .kb-plan strong { font-weight: 700; }
+  .kb-plan em { color: var(--ink); font-style: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .plan-box { margin-top: 0.7rem; padding: 0.8rem 0.9rem; border: 1px solid var(--gray-border); border-radius: 10px; background: var(--gray-light); }
+  .plan-box.falta { border-color: var(--orange); background: var(--orange-bg); }
+  .plan-box h4 { font-size: 0.82rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem; }
+  .plan-box .plan-aviso { color: var(--orange); font-weight: 700; }
+  .plan-fila { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; }
+  .plan-fila select, .plan-fila input, .plan-fila textarea { padding: 0.5rem 0.65rem; border: 1px solid var(--gray-border); border-radius: 8px; font: inherit; font-size: 0.85rem; background: var(--white); color: var(--ink); min-height: 38px; }
+  .plan-fila textarea { flex: 1 1 260px; resize: vertical; min-height: 38px; }
+  .dash-plan { margin-bottom: 1.5rem; }
+  .plan-row { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(260px, 2fr) auto; gap: 0.6rem; align-items: center; padding: 0.7rem 1.2rem; border-bottom: 1px solid var(--gray-border); }
+  .plan-row:last-child { border-bottom: 0; }
+  .plan-row.falta { background: var(--orange-bg); }
+  .plan-row.resaltar { box-shadow: inset 0 0 0 2px var(--orange); }
+  .plan-row .pn { font-weight: 600; font-size: 0.86rem; word-break: break-word; }
+  .plan-row .pn small { display: block; font-weight: 500; color: var(--gray-mid); font-size: 0.74rem; margin-top: 0.1rem; }
+  .plan-row select, .plan-row input { padding: 0.45rem 0.6rem; border: 1px solid var(--gray-border); border-radius: 8px; font: inherit; font-size: 0.82rem; background: var(--white); color: var(--ink); min-height: 36px; width: 100%; min-width: 0; }
+  .plan-tag { display: inline-block; font-size: 0.7rem; font-weight: 700; color: var(--orange); background: var(--orange-bg); border-radius: 6px; padding: 0.1rem 0.45rem; margin-left: 0.4rem; }
+  .dash-al.naranja { background: var(--orange-bg); color: var(--orange); cursor: pointer; }
+  @media (max-width: 900px) { .plan-row { grid-template-columns: 1fr auto; } .plan-row .pn { grid-column: 1 / -1; } }
 </style>
 </head>
 <body>
@@ -747,6 +773,11 @@
             <div class="panel-head"><h3>Requieren atención</h3><span class="count" id="count-dash-alertas">0</span></div>
             <div id="dash-alertas-lista" class="dash-alertas-lista"><div class="loading-text">Cargando…</div></div>
           </div>
+        </div>
+
+        <div class="panel-wide dash-plan">
+          <div class="panel-wide-head"><h3><span data-ic="ship"></span> Planificación de embarques</h3><span class="count" id="count-dash-plan">0</span></div>
+          <div id="dash-plan-lista"><div class="loading-text">Cargando…</div></div>
         </div>
 
         <div class="kpi-grid">
@@ -2044,12 +2075,75 @@
   // DASHBOARD
   // ==================================================
 
+
+  // ===== Planificación del embarque =====
+  const PLAN_DIAS_AVISO = 10;
+  const planTieneNotas = (imp) => !!String(imp.plan_notas || '').trim();
+  // Requiere planificación: en tránsito con la ETA a 10 días o menos (o vencida), o ya en puerto, sin notas de plan
+  function planFalta(imp, etaStr) {
+    if (planTieneNotas(imp)) return false;
+    if (imp.etapa === 'puerto') return true;
+    if (imp.etapa !== 'en_transito' || !etaStr) return false;
+    return diasEntre(todayStr(), String(etaStr).slice(0, 10)) <= PLAN_DIAS_AVISO;
+  }
+  async function planGuardar(id, notas) {
+    const { error } = await supabaseClient.from('importaciones').update({
+      plan_notas: (notas || '').trim() || null,
+      plan_actualizado: new Date().toISOString()
+    }).eq('id', id);
+    if (error) {
+      showToast(/plan_notas|column/i.test(error.message || '') ? 'Falta correr schema_planificacion.sql en Supabase' : 'No se pudo guardar la planificación', 'error');
+      return false;
+    }
+    showToast('Planificación guardada');
+    return true;
+  }
+  let planPend = [];
+  async function loadDashboardPlan(activas) {
+    const lista = document.getElementById('dash-plan-lista');
+    if (!lista) return;
+    const { data: imps } = await supabaseClient.from('importaciones')
+      .select('id, descripcion, etapa, fecha_eta, plan_notas').in('etapa', ['embarcado', 'en_transito', 'puerto']);
+    let nav = {};
+    try { const { data: ts } = await supabaseClient.from('importacion_tracking').select('importacion_id, eta_actual'); (ts ?? []).forEach(t => nav[t.importacion_id] = t.eta_actual); } catch (_) { /* sin seguimiento */ }
+    const hoy = todayStr();
+    const filas = (imps ?? []).map(i => {
+      const eta = i.fecha_eta ? String(i.fecha_eta).slice(0, 10) : (nav[i.id] ? String(nav[i.id]).slice(0, 10) : null);
+      return { ...i, _eta: eta, _dias: eta ? diasEntre(hoy, eta) : 9999, _falta: planFalta(i, eta) };
+    }).sort((a, b) => a._dias - b._dias);
+    planPend = filas.filter(f => f._falta);
+    document.getElementById('count-dash-plan').textContent = planPend.length ? planPend.length + ' sin planificar' : filas.length;
+    const etapaTxt = { embarcado: 'Embarcado', en_transito: 'En tránsito', puerto: 'Puerto' };
+    lista.innerHTML = filas.length ? filas.map(f => `
+      <div class="plan-row ${f._falta ? 'falta' : ''}" id="plan-row-${f.id}" data-plan-box="${f.id}">
+        <div class="pn">${esc(f.descripcion)}${f._falta ? '<span class="plan-tag">Requiere planificación</span>' : ''}
+          <small>${etapaTxt[f.etapa] ?? f.etapa}${f._eta ? ' · ETA ' + formatFecha(f._eta) + (f._dias < 9999 ? (f._dias < 0 ? ` (${-f._dias} d atraso)` : f._dias === 0 ? ' (hoy)' : ` (en ${f._dias} d)`) : '') : ' · sin ETA'}</small></div>
+        <input type="text" data-plan-notas value="${esc(f.plan_notas || '')}" placeholder="Qué se va a hacer: destino, transporte, fecha de retiro…" aria-label="Notas del plan">
+        <button type="button" class="btn-secondary" data-plan-guardar-dash="${f.id}">Guardar</button>
+      </div>`).join('') : '<div class="loading-text" style="padding:1rem 1.2rem;">No hay embarques en camino.</div>';
+  }
+  document.addEventListener('click', async (e) => {
+    const ir = e.target.closest('[data-dash-plan-ir]');
+    if (ir) {
+      const row = document.getElementById('plan-row-' + ir.dataset.dashPlanIr);
+      if (row) { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('resaltar'); setTimeout(() => row.classList.remove('resaltar'), 2500); }
+      return;
+    }
+    const g = e.target.closest('[data-plan-guardar-dash]');
+    if (!g || g.disabled) return;
+    const row = g.closest('[data-plan-box]');
+    g.disabled = true;
+    const ok = await planGuardar(g.dataset.planGuardarDash, row.querySelector('[data-plan-notas]').value);
+    g.disabled = false;
+    if (ok) loadDashboardTop();
+  });
+
   async function loadDashboardTop() {
     const cont = document.getElementById('dash-llegadas');
     const lista = document.getElementById('dash-alertas-lista');
     if (!cont || !lista) return;
     const { data: imps } = await supabaseClient.from('importaciones')
-      .select('id, descripcion, etapa, fecha_eta, fecha_ingreso_fiscal').neq('etapa', 'finalizado');
+      .select('id, descripcion, etapa, fecha_eta, fecha_ingreso_fiscal, plan_notas').neq('etapa', 'finalizado');
     const activas = imps ?? [];
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
     const lunes = new Date(hoy); lunes.setDate(lunes.getDate() - ((lunes.getDay() + 6) % 7));
@@ -2069,6 +2163,7 @@
     cont.innerHTML = semanas.map(s => `<div class="dash-col ${s.tipo}"><span class="v">${s.n}</span><div class="b" style="height:${Math.round(s.n / max * 100)}%"></div><span class="l">${s.l}</span></div>`).join('');
 
     const al = [];
+    await loadDashboardPlan(activas);
     const { data: ctn } = await supabaseClient.from('importacion_contenedores')
       .select('numero, fecha_disponible_retiro, fecha_retiro_puerto, dias_libres_contenedor, fecha_devuelto, importaciones(descripcion, etapa)')
       .or('fecha_disponible_retiro.not.is.null,fecha_retiro_puerto.not.is.null').is('fecha_devuelto', null);
@@ -2078,18 +2173,20 @@
       al.push({ pr: d < 0 ? 0 : 1, cls: d <= 3 ? 'rojo' : 'ambar', t: c.importaciones.descripcion, sub: 'Días libres del contenedor ' + (c.numero || ''), g: d < 0 ? 'vencido ' + Math.abs(d) + ' d' : d + ' d', ord: d });
     });
     enRuta.forEach(i => {
+      if (planPend.some(x => x.id === i.id)) return;   // ya figura como "falta planificar"
       const d = Math.ceil((new Date(String(i.fecha_eta).slice(0, 10) + 'T00:00:00') - hoy) / 86400000);
       if (d < 0) al.push({ pr: 2, cls: 'rojo', t: i.descripcion, sub: 'ETA vencida, confirmar arribo', g: Math.abs(d) + ' d atraso', ord: d });
-      else if (d <= 7) al.push({ pr: 3, cls: 'ambar', t: i.descripcion, sub: 'Arribo próximo, coordinar retiro', g: 'en ' + d + ' d', ord: d });
+      else if (d <= 7) al.push({ pr: 3, cls: 'ambar', t: i.descripcion, sub: planTieneNotas(i) ? 'Arribo próximo · plan: ' + String(i.plan_notas).trim().slice(0, 70) : 'Arribo próximo, coordinar retiro', g: 'en ' + d + ' d', ord: d });
     });
     activas.filter(i => i.etapa === 'deposito_fiscal' && i.fecha_ingreso_fiscal).forEach(i => {
       const d = diasEntre(String(i.fecha_ingreso_fiscal).slice(0, 10));
       if (d >= 15) al.push({ pr: 4, cls: 'viol', t: i.descripcion, sub: 'Permanencia en depósito fiscal', g: d + ' d', ord: -d });
     });
+    planPend.forEach(i => al.push({ pr: 2, cls: 'naranja', t: i.descripcion, sub: 'Requiere planificación: ' + (i.etapa === 'puerto' ? 'ya está en puerto' : 'arribo próximo'), g: 'planificar', ord: i._dias, id: i.id }));
     al.sort((a, b) => a.pr - b.pr || a.ord - b.ord);
     document.getElementById('count-dash-alertas').textContent = al.length;
     lista.innerHTML = al.length
-      ? al.slice(0, 12).map(a => `<div class="dash-al ${a.cls}"><div class="t">${esc(a.t)}<small>${esc(a.sub)}</small></div><span class="g">${esc(a.g)}</span></div>`).join('')
+      ? al.slice(0, 12).map(a => `<div class="dash-al ${a.cls}"${a.id ? ` data-dash-plan-ir="${a.id}"` : ''}><div class="t">${esc(a.t)}<small>${esc(a.sub)}</small></div><span class="g">${esc(a.g)}</span></div>`).join('')
       : '<div class="loading-text">Nada urgente por ahora.</div>';
   }
 
@@ -4256,6 +4353,18 @@
       return `<span class="fiscal-badge" style="background:var(--gray-light); color:var(--ink);">${ic('chart',13)} ${pct.toFixed(1)}% sobre FOB</span>`;
     }
 
+    const renderPlanBox = (imp) => {
+      if (imp.etapa === 'finalizado') return '';
+      const etaN = imp.fecha_eta ? String(imp.fecha_eta).slice(0, 10) : (trackingMap[imp.id]?.eta_actual ? String(trackingMap[imp.id].eta_actual).slice(0, 10) : null);
+      const falta = planFalta(imp, etaN);
+      return `<div class="plan-box ${falta ? 'falta' : ''}" data-plan-box="${imp.id}">
+        <h4>${ic('flag', 13)} Planificación${falta ? ' <span class="plan-aviso">· requiere planificación</span>' : ''}</h4>
+        <div class="plan-fila">
+          <textarea data-plan-notas rows="2" placeholder="Qué se va a hacer con el contenedor: destino, transporte, fecha de retiro, a quién avisar…">${esc(imp.plan_notas || '')}</textarea>
+          <button type="button" class="btn-secondary" data-plan-guardar="${imp.id}">Guardar plan</button>
+        </div>
+      </div>`;
+    };
     const cardHTML = (imp) => `
       <div class="import-card" style="${imp.etapa === 'finalizado' ? 'background:var(--green-bg); border-color:var(--green);' : ''}">
         <div class="import-card-head">
@@ -4269,6 +4378,7 @@
               ${imp.fecha_eta ? ` · ETA ${formatFecha(imp.fecha_eta)}` : ''}
             </div>
             ${renderTrackingHTML(imp, trackingMap[imp.id])}
+            ${renderPlanBox(imp)}
             ${renderComprasVinculadas(imp)}
           </div>
           <div class="import-card-actions">
@@ -4365,6 +4475,13 @@
       }
       return '';
     }
+    function kbPlan(imp) {
+      if (imp.etapa === 'finalizado') return '';
+      if (planFalta(imp, imp._eta)) return `<div class="kb-extra kb-x-plan">${ic('alert', 12)} Requiere planificación</div>`;
+      if (!planTieneNotas(imp)) return '';
+      const n = String(imp.plan_notas).trim();
+      return `<div class="kb-plan" title="${esc2(n)}"><span>${ic('flag', 12)} <strong>Plan</strong></span><em>${esc2(n.length > 90 ? n.slice(0, 90) + '…' : n)}</em></div>`;
+    }
     function kbCard(imp) {
       const lista = comprasPorImp[imp.id] ?? [];
       const unidades = lista.reduce((t, c) => t + c.cub, 0);
@@ -4378,6 +4495,7 @@
         <div class="kb-r2"><span><strong>${unidades ? maeNum(unidades) : '—'}</strong> U.</span><span class="kb-fob">FOB <strong>${fob ? formatUSDCent(fob) : '—'}</strong></span></div>
         <div class="kb-r3"><span>SBU <strong>${esc2(imp.rubro || '—')}</strong></span><span>Marca <strong>${esc2(imp.marca || '—')}</strong></span>${preEmb && imp.fecha_estimada_embarque ? `<span class="kb-etd">ETD ${formatFecha(imp.fecha_estimada_embarque)}</span>` : ''}</div>
         ${kbExtra(imp)}
+        ${kbPlan(imp)}
         <div class="kb-r4"><span title="Factura de Odoo">${ic('receipt', 12)} ${facturas.length ? esc2(facturas[0]) + (facturas.length > 1 ? ` +${facturas.length - 1}` : '') : '<em>sin factura</em>'}</span><span title="BL / booking">BL ${imp.tracking_referencia ? `<strong>${esc2(imp.tracking_referencia)}</strong>` : '<em>—</em>'}</span></div>
       </div>`;
     }
@@ -5132,6 +5250,16 @@
   }
 
   document.addEventListener('click', async (e) => {
+    const pg = e.target.closest('[data-plan-guardar]');
+    if (pg) {
+      if (pg.disabled) return;
+      const box = pg.closest('[data-plan-box]');
+      pg.disabled = true;
+      const ok = await planGuardar(pg.dataset.planGuardar, box.querySelector('[data-plan-notas]').value);
+      pg.disabled = false;
+      if (ok) { impDetalleEtapa = null; loadImportacionesView(); }
+      return;
+    }
     const alta = e.target.closest('[data-tracking-alta]');
     const eta = e.target.closest('[data-tracking-eta]');
     const tog = e.target.closest('[data-tracking-toggle]');
