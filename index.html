@@ -6714,6 +6714,7 @@
     const filas = f.lineas.map((l, i) => ({
       factura: f.factura, referencia: f.ref || null, linea_nro: i + 1, codigo: l.codigo, nombre: l.nombre || null,
       cantidad: l.qty, precio_unitario: l.precio || null, orden_compra: l.oc || null, importacion_id: impId || null,
+      diferencia_aceptada: !!l.aceptada, diferencia_nota: l.nota || null, aceptada_por: l.por || null, aceptada_en: l.en || null,
     }));
     try {
       const d = await supabaseClient.from('facturas_odoo_lineas').delete().eq('factura', f.factura);
@@ -6809,7 +6810,7 @@
     const porFactura = new Map();
     filas.forEach(r => {
       const f = porFactura.get(r.factura) ?? { factura: r.factura, ref: r.referencia ?? '', lineas: [], incluida: true, dest: r.importacion_id ?? '', desc: r.referencia || r.factura };
-      f.lineas.push({ codigo: String(r.codigo).trim(), nombre: r.nombre ?? '', qty: Number(r.cantidad), precio: Number(r.precio_unitario ?? 0), oc: r.orden_compra ?? '' });
+      f.lineas.push({ codigo: String(r.codigo).trim(), nombre: r.nombre ?? '', qty: Number(r.cantidad), precio: Number(r.precio_unitario ?? 0), oc: r.orden_compra ?? '', aceptada: !!r.diferencia_aceptada, nota: r.diferencia_nota ?? '', por: r.aceptada_por ?? '', en: r.aceptada_en ?? '' });
       if (r.importacion_id) f.dest = r.importacion_id;
       porFactura.set(r.factura, f);
     });
@@ -6823,9 +6824,27 @@
     ]);
     const st = { lista: [...porFactura.values()], sols, lineas, asigs, imps, prodPorCodigo: new Map(prods.filter(p => p.codigo).map(p => [String(p.codigo).trim(), p])) };
     odFacCalcular(st);
+    // diferencias aceptadas no cuentan como pendientes; además se busca la línea de compra a ampliar
+    st.lista.forEach(f => {
+      f.planLineas.forEach(pl => {
+        if (pl.falta > 0 && pl.aceptada) { f.cubFalta -= pl.falta; pl.falta = 0; pl.dejadaAceptada = true; }
+        if (pl.falta > 0 && pl.productoId) {
+          const cand = asigs.filter(a => String(a.factura ?? '').split(' / ').includes(f.factura))
+            .map(a => ({ a, l: lineas.find(x => x.id === a.solicitud_linea_id) })).filter(x => x.l && x.l.producto_id === pl.productoId)
+            .sort((x, y) => Number(y.a.cantidad) - Number(x.a.cantidad))[0];
+          pl.lineaAmpliar = cand ? cand.l.id : null;
+        }
+      });
+    });
     const pendientes = st.lista.filter(f => f.cubFalta > 0);
     odPend = { ...st, pendientes };
-    if (!pendientes.length) { cont.innerHTML = ''; return []; }
+    const aceptadas = st.lista.flatMap(f => f.planLineas.filter(pl => pl.dejadaAceptada).map(pl => ({ factura: f.factura, codigo: pl.codigo, qty: pl.qty, nota: pl.nota, por: pl.por, en: pl.en })));
+    odPend.aceptadas = aceptadas;
+    const htmlAceptadas = aceptadas.length ? `<div class="panel-wide" style="margin-top:1rem;"><div class="panel-wide-head"><h3>Diferencias dejadas sin compra</h3><span class="count">${aceptadas.length}</span></div>
+      <div class="od-body">${aceptadas.map((x, k) => `<div class="od-sub" style="display:flex; gap:0.75rem; align-items:center; justify-content:space-between; padding:0.4rem 0; border-top:1px solid var(--border,rgba(128,128,128,.2));">
+        <span><strong>${esc(x.factura)}</strong> · ${esc(x.codigo)} · “${esc(x.nota || 'sin nota')}” · ${esc(x.por || '—')}${x.en ? ' · ' + formatFecha(String(x.en).slice(0, 10)) : ''}</span>
+        <button type="button" class="btn-secondary" data-od-pend-deshacer="${k}">Deshacer</button></div>`).join('')}</div></div>` : '';
+    if (!pendientes.length) { cont.innerHTML = htmlAceptadas; return []; }
     const impNombre = Object.fromEntries(imps.map(i => [i.id, i.descripcion]));
     const hay = pendientes.filter(f => f.cubNuevas > 0);
     const tarjetas = pendientes.map((f, i) => {
@@ -6839,6 +6858,9 @@
           ${puede ? odAviso(`✔ Con las compras que ya cargaste se pueden vincular <strong>${maeNum(f.cubNuevas)}</strong> cubiertas: ${vinculables.slice(0, 6).join(' · ')}${vinculables.length > 6 ? ' …' : ''}`, 'ok') : ''}
           <div class="od-sub" style="margin-bottom:0.5rem;">Sin compra: ${faltan.slice(0, 8).map(pl => `${esc(pl.codigo)} (${maeNum(pl.falta)})`).join(', ')}${faltan.length > 8 ? ' …' : ''}${puede ? '' : ' — importá o cargá la orden de compra que los incluya.'}</div>
           ${puede ? `<button type="button" class="btn-primary" data-od-pend-vincular="${i}">Vincular ahora</button>` : ''}
+          ${!puede && faltan.every(pl => pl.lineaAmpliar) ? `<div class="od-sub" style="margin-bottom:0.5rem;">La factura trae más unidades que la compra (ej.: facturó 114 y pediste 100). Lo habitual es <strong>vincular lo sobrante a la compra</strong>: se amplía la orden a lo facturado y queda registrado en Auditoría.</div>
+          <button type="button" class="btn-primary" data-od-pend-ampliar="${i}">Vincular lo sobrante a la compra (+${faltan.map(pl => maeNum(pl.falta)).join(' / +')})</button> ` : ''}
+          ${!puede ? `<button type="button" class="btn-secondary" data-od-pend-aceptar="${i}" title="Solo si esas unidades NO forman parte de la compra. Exige una nota y queda registrado.">Dejar sin compra (con nota)…</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -6846,7 +6868,7 @@
       <div class="od-body">
         <p class="od-ayuda">Estas facturas tienen cubiertas que todavía no están asignadas a ninguna compra. Cuando cargás o importás la compra correspondiente, acá aparece el aviso y las vinculás con un clic.</p>
         ${tarjetas}<div id="od-pend-resultado"></div>
-      </div></div>`;
+      </div></div>${htmlAceptadas}`;
     if (destacar && hay.length) cont.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return hay;
   }
@@ -6864,6 +6886,66 @@
       btn.disabled = false; btn.textContent = 'Vincular ahora';
       if (res) res.innerHTML = odAviso(esc(e.message ?? 'No se pudo vincular'), 'err');
     }
+  }
+
+  // Sube la cantidad de la línea de compra a lo facturado y vincula la diferencia
+  async function odPendAmpliar(i, btn) {
+    const f = odPend.pendientes[i];
+    const res = document.getElementById('od-pend-resultado');
+    const lista = f.planLineas.filter(pl => pl.falta > 0);
+    if (!confirm(`Se va a ampliar la orden de compra: ${lista.map(pl => pl.codigo + ' +' + maeNum(pl.falta)).join(', ')}. ¿Confirmás?`)) return;
+    btn.disabled = true; btn.textContent = 'Ampliando…';
+    try {
+      for (const pl of lista) {
+        const { data: lin, error: e1 } = await supabaseClient.from('solicitud_lineas').select('cantidad').eq('id', pl.lineaAmpliar).single();
+        if (e1) throw e1;
+        const { error: e2 } = await supabaseClient.from('solicitud_lineas').update({ cantidad: Number(lin.cantidad) + pl.falta }).eq('id', pl.lineaAmpliar);
+        if (e2) throw e2;
+      }
+      const factura = f.factura;
+      await odPendRender();
+      const nueva = odPend?.pendientes.find(x => x.factura === factura);
+      if (nueva) await odFacAplicar(nueva);
+      showToast(`${factura}: compra ampliada y vinculada`);
+      if (typeof loadComprasView === 'function') loadComprasView();
+      await odPendRender();
+    } catch (e) {
+      btn.disabled = false; btn.textContent = 'Vincular lo sobrante a la compra';
+      if (res) res.innerHTML = odAviso(esc(e.message ?? 'No se pudo ampliar la compra'), 'err');
+    }
+  }
+
+  // Marca la diferencia como aceptada: sale de pendientes y queda registrada la nota
+  async function odPendAceptar(i, btn) {
+    const f = odPend.pendientes[i];
+    const res = document.getElementById('od-pend-resultado');
+    const resumen = f.planLineas.filter(pl => pl.falta > 0).map(pl => `${pl.codigo} (${maeNum(pl.falta)})`).join(', ');
+    const nota = prompt(`Vas a dejar SIN COMPRA: ${resumen}.\nEscribí el motivo (obligatorio, mínimo 5 letras):`, '');
+    if (nota === null) return;
+    if (nota.trim().length < 5) { if (res) res.innerHTML = odAviso('Hace falta escribir el motivo (mínimo 5 letras). No se guardó nada.', 'warn'); return; }
+    let quien = '';
+    try { quien = (await supabaseClient.auth.getUser()).data?.user?.email ?? ''; } catch (e) { /* sin dato */ }
+    btn.disabled = true;
+    try {
+      for (const pl of f.planLineas.filter(pl => pl.falta > 0)) {
+        const { error } = await supabaseClient.from('facturas_odoo_lineas').update({ diferencia_aceptada: true, diferencia_nota: nota.trim(), aceptada_por: quien || null, aceptada_en: new Date().toISOString() }).eq('factura', f.factura).eq('codigo', pl.codigo);
+        if (error) throw new Error(error.message?.includes('diferencia') ? 'Falta correr schema_diferencia_factura.sql en Supabase' : error.message);
+      }
+      showToast(`${f.factura}: diferencia aceptada`);
+      await odPendRender();
+    } catch (e) {
+      btn.disabled = false;
+      if (res) res.innerHTML = odAviso(esc(e.message ?? 'No se pudo guardar'), 'err');
+    }
+  }
+
+  async function odPendDeshacer(k) {
+    const x = odPend?.aceptadas?.[k]; if (!x) return;
+    if (!confirm(`¿Volver a marcar como pendiente ${x.codigo} de ${x.factura}?`)) return;
+    const { error } = await supabaseClient.from('facturas_odoo_lineas').update({ diferencia_aceptada: false, diferencia_nota: null, aceptada_por: null, aceptada_en: null }).eq('factura', x.factura).eq('codigo', x.codigo);
+    if (error) { showToast(error.message, 'error'); return; }
+    showToast('Vuelve a figurar como pendiente');
+    await odPendRender();
   }
 
   function loadOdooView() {
@@ -6886,6 +6968,12 @@
     document.getElementById('od-pend').addEventListener('click', (e) => {
       const b = e.target.closest('[data-od-pend-vincular]');
       if (b) odPendVincular(Number(b.dataset.odPendVincular), b);
+      const am = e.target.closest('[data-od-pend-ampliar]');
+      if (am) odPendAmpliar(Number(am.dataset.odPendAmpliar), am);
+      const de = e.target.closest('[data-od-pend-deshacer]');
+      if (de) odPendDeshacer(Number(de.dataset.odPendDeshacer));
+      const ac = e.target.closest('[data-od-pend-aceptar]');
+      if (ac) odPendAceptar(Number(ac.dataset.odPendAceptar), ac);
     });
     const fp = document.getElementById('od-fac-preview');
     fp.addEventListener('click', (e) => { if (e.target.id === 'od-fac-importar') odFacImportar(); });
