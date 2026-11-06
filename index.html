@@ -1452,7 +1452,6 @@
           <label>Línea de producto</label>
           <select id="msol-linea-producto" required>
             <option value="">— Elegir —</option>
-            <option>TBR</option><option>PCR</option><option>LTR</option>
           </select>
         </div>
       </div>
@@ -2061,6 +2060,30 @@
     const { data, error } = await supabaseClient.from('marcas').select('nombre').order('nombre');
     marcasCache = error ? [] : data.map(m => m.nombre);
     return marcasCache;
+  }
+
+  // ----- Líneas de producto (PCR, TBR, LTR, OTR…) -----
+  let lineasCache = null;
+  async function ensureLineasCache(force = false) {
+    if (lineasCache && !force) return lineasCache;
+    const { data, error } = await supabaseClient.from('lineas_producto').select('nombre').order('nombre');
+    lineasCache = (error || !data?.length) ? ['LTR', 'OTR', 'PCR', 'TBR'] : data.map(l => l.nombre);
+    return lineasCache;
+  }
+  function lineaOptsHtml(items, actual, vacio) {
+    const lista = actual && !items.includes(actual) ? [...items, actual] : items;
+    return `<option value="">${vacio}</option>` + lista.map(v => `<option value="${esc(v)}" ${v === actual ? 'selected' : ''}>${esc(v)}</option>`).join('')
+      + '<option value="__nuevo__">+ Agregar línea…</option>';
+  }
+  async function lineaCrearNueva() {
+    const n = (prompt('Nombre de la nueva línea de producto (ej.: OTR). Solo letras y números, sin espacios:', '') || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+    if (!n) return null;
+    if ((await ensureLineasCache()).includes(n)) return n;
+    const { error } = await supabaseClient.from('lineas_producto').insert([{ nombre: n }]);
+    if (error) { showToast(/lineas_producto|relation|schema cache/i.test(error.message || '') ? 'Falta correr schema_lineas_producto.sql en Supabase' : 'No se pudo crear la línea', 'error'); return null; }
+    await ensureLineasCache(true);
+    showToast(`Línea ${n} creada`);
+    return n;
   }
 
   let tiposContenedorCache = null;
@@ -3707,6 +3730,13 @@
     btn.disabled = false;
   });
 
+  document.getElementById('msol-linea-producto').addEventListener('change', async (e) => {
+    if (e.target.value !== '__nuevo__') return;
+    const n = await lineaCrearNueva();
+    e.target.innerHTML = lineaOptsHtml(await ensureLineasCache(), n ?? '', '— Elegir —');
+    e.target.value = n ?? '';
+  });
+
   async function openSolicitudModal(sol) {
     const [empresas, proveedores, puertos] = await Promise.all([ensureEmpresasCache(), ensureProveedoresCache(), ensurePuertosCache()]);
     fillSelect(document.getElementById('msol-empresa'), empresas, null);
@@ -3714,6 +3744,7 @@
     fillPuertoSelect(document.getElementById('msol-puerto-destino'), puertos, sol ? sol.puerto_destino : null);
     document.getElementById('msol-puerto-nuevo-wrap').style.display = 'none';
     document.getElementById('msol-puerto-nuevo').value = '';
+    document.getElementById('msol-linea-producto').innerHTML = lineaOptsHtml(await ensureLineasCache(), sol?.linea_producto ?? '', '— Elegir —');
     document.getElementById('msol-form').reset();
     document.getElementById('msol-error').style.display = 'none';
 
@@ -6424,14 +6455,15 @@
     const nuevosProd = new Set();
     lista.forEach(o => o.lineas.forEach(l => { if (!prodPorCodigo.has(l.codigo)) nuevosProd.add(l.codigo); }));
     const hayNuevas = lista.some(o => !o.existente);
-    const adivinar = (lista.map(o => o.ref).join(' ').match(/\b(TBR|PCR|LTR)\b/i) || [])[1]?.toUpperCase() ?? '';
+    const lineasCat = await ensureLineasCache();
+    const adivinar = (lista.map(o => o.ref).join(' ').match(new RegExp('\\b(' + lineasCat.join('|') + ')\\b', 'i')) || [])[1]?.toUpperCase() ?? '';
     const prev = {
       empresa: document.getElementById('od-oc-empresa')?.value ?? '',
       linea: document.getElementById('od-oc-linea')?.value ?? adivinar,
       cat: document.getElementById('od-oc-cat')?.value ?? adivinar,
       marca: document.getElementById('od-oc-marca')?.value ?? '',
     };
-    const opLinea = (sel) => ['', 'PCR', 'TBR', 'LTR'].map(v => `<option value="${v}" ${v === sel ? 'selected' : ''}>${v || '— sin definir —'}</option>`).join('');
+    const opLinea = (sel) => lineaOptsHtml(lineasCat, sel, '— sin definir —');
     const filas = lista.map((o, i) => {
       let estado;
       if (!o.existente) estado = maeTag('Nueva', 'ok');
@@ -6963,6 +6995,16 @@
     document.getElementById('od-fac-file').addEventListener('change', (e) => { if (e.target.files[0]) odFacAnalizar(e.target.files[0]); });
     document.getElementById('od-oc-preview').addEventListener('click', (e) => { if (e.target.id === 'od-oc-importar') odOCImportar(); });
     document.getElementById('od-oc-preview').addEventListener('change', (e) => {
+      if ((e.target.id === 'od-oc-linea' || e.target.id === 'od-oc-cat') && e.target.value === '__nuevo__') {
+        lineaCrearNueva().then(async (n) => {
+          const items = await ensureLineasCache();
+          const lin = document.getElementById('od-oc-linea'), cat = document.getElementById('od-oc-cat');
+          const vLin = lin.value === '__nuevo__' ? (n ?? '') : lin.value, vCat = cat.value === '__nuevo__' ? (n ?? '') : cat.value;
+          lin.innerHTML = lineaOptsHtml(items, vLin, '— sin definir —'); cat.innerHTML = lineaOptsHtml(items, vCat, '— sin definir —');
+          if (n && !cat.value) cat.value = n;
+        });
+        return;
+      }
       if (e.target.id === 'od-oc-linea') { const cat = document.getElementById('od-oc-cat'); if (!cat.value) cat.value = e.target.value; }
     });
     document.getElementById('od-pend').addEventListener('click', (e) => {
