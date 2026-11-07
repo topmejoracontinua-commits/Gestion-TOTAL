@@ -511,6 +511,13 @@
   #modal-imp-detalle .import-card { margin-bottom: 0; border: 0; padding: 0; box-shadow: none; background: transparent; }
 
   /* ---------- Seguimiento / mapa ---------- */
+  .seg-filtros { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.6rem 0.8rem; background: var(--white); border: 1px solid var(--gray-border); border-radius: 12px; padding: 0.75rem 0.9rem; margin-bottom: 1rem; }
+  .seg-filtros .field { margin: 0; }
+  .seg-filtros .field label { font-size: 0.72rem; }
+  .seg-filtros .seg-f-texto { flex: 1 1 220px; min-width: 200px; }
+  .seg-f-rapidos { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .seg-f-rapidos .btn-secondary { padding: 0.45rem 0.7rem; font-size: 0.78rem; }
+  .seg-f-resumen { flex-basis: 100%; font-size: 0.78rem; color: var(--gray-mid); }
   .seg-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 1rem; align-items: start; }
   .seg-mapa-wrap { position: relative; border: 1px solid var(--gray-border); border-radius: 12px; overflow: hidden; background: var(--white); }
   #seg-mapa { height: calc(100vh - 190px); min-height: 460px; width: 100%; z-index: 1; }
@@ -957,6 +964,18 @@
         <div class="main-header">
           <div><h1>Seguimiento</h1><p>Dónde está cada embarque, en el mapa</p></div>
           <button class="btn-secondary" id="seg-actualizar" type="button"><span data-ic="ship"></span> Actualizar posiciones</button>
+        </div>
+        <div class="seg-filtros">
+          <div class="field"><label for="seg-f-desde">ETA desde</label><input type="date" id="seg-f-desde"></div>
+          <div class="field"><label for="seg-f-hasta">ETA hasta</label><input type="date" id="seg-f-hasta"></div>
+          <div class="field seg-f-texto"><label for="seg-f-texto">Buscar: factura, embarque, BL, buque o marca</label><input type="search" id="seg-f-texto" placeholder="Ej: 0000083, 26CFTON035, MSC…" autocomplete="off"></div>
+          <div class="seg-f-rapidos">
+            <button type="button" class="btn-secondary" data-seg-rango="7">Próximos 7 días</button>
+            <button type="button" class="btn-secondary" data-seg-rango="30">Próximos 30 días</button>
+            <button type="button" class="btn-secondary" data-seg-rango="mes">Este mes</button>
+            <button type="button" class="btn-secondary" id="seg-f-limpiar">Limpiar</button>
+          </div>
+          <div class="seg-f-resumen" id="seg-f-resumen"></div>
         </div>
         <div class="seg-layout">
           <div class="seg-mapa-wrap"><div id="seg-mapa"></div><div id="seg-mapa-aviso" class="seg-aviso" hidden></div></div>
@@ -5499,21 +5518,71 @@
     setTimeout(() => segMapa.invalidateSize(), 80);
     Object.values(segCapas).forEach(c => segMapa.removeLayer(c)); segCapas = {};
 
-    const [{ data: imps }, { data: trk, error: errT }] = await Promise.all([
+    const seguro = async (fn) => { try { return await fetchTodo(fn); } catch (e) { return []; } };
+    const [{ data: imps }, { data: trk, error: errT }, asigF, odooF] = await Promise.all([
       supabaseClient.from('importaciones').select('id, descripcion, etapa, marca, rubro, fecha_eta, tracking_referencia').neq('etapa', 'finalizado'),
       supabaseClient.from('importacion_tracking').select('*'),
+      seguro(() => supabaseClient.from('compra_linea_asignaciones').select('importacion_id, factura').order('id')),
+      seguro(() => supabaseClient.from('facturas_odoo_lineas').select('importacion_id, factura').order('id')),
     ]);
     if (errT) { lista.innerHTML = `<div class="placeholder-view">No se pudo leer el seguimiento.</div>`; return; }
     const tMap = Object.fromEntries((trk ?? []).map(t => [t.importacion_id, t]));
+    // facturas de cada importación (de las compras asignadas y de las facturas importadas de Odoo)
+    const facMap = {};
+    const sumarFac = (impId, texto) => {
+      if (!impId || !texto) return;
+      String(texto).split(' / ').map(x => x.trim()).filter(Boolean).forEach(f => (facMap[impId] ??= new Set()).add(f));
+    };
+    (asigF ?? []).forEach(r => sumarFac(r.importacion_id, r.factura));
+    (odooF ?? []).forEach(r => sumarFac(r.importacion_id, r.factura));
     const todas = (imps ?? []).slice().sort((a, b) => String(a.fecha_eta ?? '9999').localeCompare(String(b.fecha_eta ?? '9999')));
-    const enMapa = [], sinMapa = [];
-    todas.forEach(i => {
+    let ci = 0;
+    todas.forEach(i => { const t = tMap[i.id]; i._conGeo = !!(t?.geojson || (Array.isArray(t?.puntos) && t.puntos.length)); i._color = i._conGeo ? SEG_COLORES[ci++ % SEG_COLORES.length] : null; delete i._diag; });
+    segDatos = { todas, tMap, facMap };
+    segRender(true);
+  }
+
+  // ---------- Filtros del seguimiento (fecha de ETA y número de factura) ----------
+  let segDatos = null;
+  const segNorm = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const segEtaDe = (i, t) => { const e = i.fecha_eta || t?.eta_actual; return e ? String(e).slice(0, 10) : ''; };
+  function segFiltros() {
+    return {
+      desde: document.getElementById('seg-f-desde').value,
+      hasta: document.getElementById('seg-f-hasta').value,
+      q: segNorm(document.getElementById('seg-f-texto').value),
+      texto: document.getElementById('seg-f-texto').value.trim(),
+    };
+  }
+  function t_geo(t) { return typeof t.geojson === 'string' ? JSON.parse(t.geojson) : t.geojson; }
+
+  function segRender(ajustar) {
+    if (!segDatos || !segMapa) return;
+    const { todas, tMap, facMap } = segDatos;
+    const lista = document.getElementById('seg-lista');
+    const aviso = document.getElementById('seg-mapa-aviso');
+    aviso.hidden = true;
+    Object.values(segCapas).forEach(c => segMapa.removeLayer(c)); segCapas = {};
+    const f = segFiltros();
+    const hayFiltro = !!(f.desde || f.hasta || f.q);
+    const vis = todas.filter(i => {
       const t = tMap[i.id];
-      if (t?.geojson || (Array.isArray(t?.puntos) && t.puntos.length)) enMapa.push(i); else sinMapa.push(i);
+      if (f.desde || f.hasta) {
+        const eta = segEtaDe(i, t);
+        if (!eta || (f.desde && eta < f.desde) || (f.hasta && eta > f.hasta)) return false;
+      }
+      if (f.q) {
+        const campos = [i.descripcion, i.tracking_referencia, i.marca, i.rubro, t?.buque, ...(facMap[i.id] ?? [])];
+        if (!campos.some(c => segNorm(c).includes(f.q))) return false;
+      }
+      return true;
     });
+    document.getElementById('seg-f-resumen').textContent = hayFiltro ? `Mostrando ${vis.length} de ${todas.length} embarques` : '';
+
+    const enMapa = vis.filter(i => i._conGeo), sinMapa = vis.filter(i => !i._conGeo);
     const bounds = L.latLngBounds([]);
-    enMapa.forEach((i, n) => {
-      const color = SEG_COLORES[n % SEG_COLORES.length];
+    enMapa.slice().forEach(i => {
+      const color = i._color;
       try {
         const tt = tMap[i.id];
         let g = null;
@@ -5524,27 +5593,28 @@
         }
         if (!g && Array.isArray(tt.puntos) && tt.puntos.length) g = segCapaPuntos(tt.puntos, color, i.descripcion, tt);
         if (!g) throw new Error('sin coordenadas legibles');
-        g.addTo(segMapa); segCapas[i.id] = g; i._color = color;
+        g.addTo(segMapa); segCapas[i.id] = g;
         const b = g.getBounds(); if (b.isValid()) bounds.extend(b);
       } catch (e) {
         console.warn('Mapa: no se pudo dibujar', i.descripcion, e);
         let crudo = '';
         try { crudo = JSON.stringify(typeof tMap[i.id].geojson === 'string' ? JSON.parse(tMap[i.id].geojson) : tMap[i.id].geojson).slice(0, 400); } catch (_) { /* nada */ }
-        i._diag = crudo;
+        i._diag = crudo; i._color = null;
         sinMapa.push(i);
       }
     });
-    function t_geo(t) { return typeof t.geojson === 'string' ? JSON.parse(t.geojson) : t.geojson; }
-    if (bounds.isValid()) segMapa.fitBounds(bounds.pad(0.15));
+    if (ajustar && bounds.isValid()) segMapa.fitBounds(bounds.pad(0.15));
 
     const fila = (i, conMapa) => {
       const t = tMap[i.id];
       const pct = t?.transito_pct;
+      const facs = facMap[i.id] ? [...facMap[i.id]] : [];
       let motivo = '';
       if (!conMapa) motivo = !i.tracking_referencia ? 'Falta cargar el Booking/BL' : !t ? 'Falta activar el seguimiento' : t.error ? esc(t.error) : t.geojson_estado && t.geojson_estado !== 'ok' ? 'Sin posición · ' + esc(t.geojson_estado) : 'Sin posición todavía: tocá “Actualizar posiciones”';
-      return `<div class="seg-item" data-seg-id="${i.id}" style="border-left-color:${conMapa ? i._color : 'var(--gray-border)'};">
+      return `<div class="seg-item" data-seg-id="${i.id}" style="border-left-color:${conMapa && i._color ? i._color : 'var(--gray-border)'};">
         <div class="seg-n">${esc(i.descripcion)}</div>
         <div>${esc(etapaLabel[i.etapa] ?? i.etapa)}${i.marca ? ' · ' + esc(i.marca) : ''}${i.rubro ? ' · ' + esc(i.rubro) : ''}</div>
+        ${facs.length ? `<div>Factura${facs.length === 1 ? '' : 's'}: <strong>${facs.slice(0, 3).map(esc).join(' · ')}${facs.length > 3 ? ' …' : ''}</strong></div>` : ''}
         ${t ? `<div>${esc(TRACK_ESTADO[t.estado] ?? t.estado ?? '')}${t.buque ? ' · <strong>' + esc(t.buque) + '</strong>' : ''}</div>` : ''}
         ${pct != null ? `<div class="seg-barra"><i style="width:${pct}%"></i></div><div>${pct}% del viaje</div>` : ''}
         <div>${t?.puerto_carga && t?.puerto_descarga ? esc(t.puerto_carga) + ' → ' + esc(t.puerto_descarga) + '<br>' : ''}ETA <strong>${(i.fecha_eta || t?.eta_actual) ? formatFecha(String(i.fecha_eta || t.eta_actual).slice(0, 10)) : '—'}</strong>${!i.fecha_eta && t?.eta_actual ? ' (naviera)' : ''}</div>
@@ -5552,10 +5622,39 @@
         ${!conMapa && i._diag ? `<div style="margin-top:0.3rem; font-family:monospace; font-size:0.66rem; word-break:break-all; opacity:0.8;">Datos recibidos: ${esc(i._diag)}</div>` : ''}
       </div>`;
     };
-    lista.innerHTML = (enMapa.length ? enMapa.filter(i => segCapas[i.id]).map(i => fila(i, true)).join('') : `<div class="placeholder-view" style="padding:1.5rem 1rem;">Ningún embarque tiene posición todavía. Usá “Actualizar posiciones”.</div>`)
-      + (sinMapa.length ? `<div class="seg-sin">Sin posición (${sinMapa.length})</div>` + sinMapa.map(i => fila(i, false)).join('') : '');
-    if (!Object.keys(segCapas).length) { aviso.textContent = 'Todavía no hay rutas para mostrar. Para que aparezcan: cargá el Booking/BL de la importación, activá el seguimiento y tocá “Actualizar posiciones”.'; aviso.hidden = false; }
+    const dibujados = enMapa.filter(i => segCapas[i.id]);
+    if (!vis.length) {
+      lista.innerHTML = `<div class="placeholder-view" style="padding:1.5rem 1rem;">${hayFiltro ? 'Ningún embarque coincide con el filtro. Probá ampliar las fechas o tocá “Limpiar”.' : 'No hay embarques en curso.'}</div>`;
+    } else {
+      lista.innerHTML = (dibujados.length ? dibujados.map(i => fila(i, true)).join('') : `<div class="placeholder-view" style="padding:1.5rem 1rem;">${hayFiltro ? 'Ninguno de los embarques filtrados tiene posición en el mapa.' : 'Ningún embarque tiene posición todavía. Usá “Actualizar posiciones”.'}</div>`)
+        + (sinMapa.length ? `<div class="seg-sin">Sin posición (${sinMapa.length})</div>` + sinMapa.map(i => fila(i, false)).join('') : '');
+    }
+    if (!Object.keys(segCapas).length) {
+      aviso.textContent = hayFiltro ? 'Ningún embarque con ruta coincide con el filtro.' : 'Todavía no hay rutas para mostrar. Para que aparezcan: cargá el Booking/BL de la importación, activá el seguimiento y tocá “Actualizar posiciones”.';
+      aviso.hidden = false;
+    }
   }
+
+  (function segFiltrosInit() {
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const aplicar = () => segRender(true);
+    ['seg-f-desde', 'seg-f-hasta'].forEach(id => document.getElementById(id).addEventListener('change', aplicar));
+    let tm; document.getElementById('seg-f-texto').addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(aplicar, 200); });
+    document.getElementById('seg-f-limpiar').addEventListener('click', () => {
+      ['seg-f-desde', 'seg-f-hasta', 'seg-f-texto'].forEach(id => { document.getElementById(id).value = ''; });
+      aplicar();
+    });
+    document.querySelector('.seg-f-rapidos').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-seg-rango]'); if (!b) return;
+      const hoy = new Date();
+      let d1 = new Date(hoy), d2 = new Date(hoy);
+      if (b.dataset.segRango === 'mes') { d1 = new Date(hoy.getFullYear(), hoy.getMonth(), 1); d2 = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0); }
+      else d2.setDate(d2.getDate() + Number(b.dataset.segRango));
+      document.getElementById('seg-f-desde').value = iso(d1);
+      document.getElementById('seg-f-hasta').value = iso(d2);
+      aplicar();
+    });
+  })();
 
   document.getElementById('seg-lista').addEventListener('click', (e) => {
     const it = e.target.closest('[data-seg-id]'); if (!it) return;
