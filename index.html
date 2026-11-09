@@ -952,6 +952,10 @@
               <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Etapa</label>
               <select id="sol-filtro-etapa" class="search-input"><option value="">Todas</option></select>
             </div>
+            <div style="flex:1 1 260px; min-width:220px;">
+              <label for="sol-buscar" style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Buscar (referencia, embarque, factura, producto…)</label>
+              <input type="search" id="sol-buscar" class="search-input" style="width:100%;" placeholder="Ej: 26CFTON017PCR, C 0001-00006955, 0000081…" autocomplete="off">
+            </div>
             <button type="button" class="btn-secondary" id="sol-filtros-limpiar">Limpiar filtros</button>
           </div>
         </div>
@@ -1162,6 +1166,10 @@
             <div>
               <label style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Etapa</label>
               <select id="imp-filtro-etapa" class="search-input"><option value="">Todas</option></select>
+            </div>
+            <div style="flex:1 1 260px; min-width:220px;">
+              <label for="imp-buscar" style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Buscar (embarque, BL, factura, compra, marca…)</label>
+              <input type="search" id="imp-buscar" class="search-input" style="width:100%;" placeholder="Ej: 26CFTON035, 0000083, EGSU…" autocomplete="off">
             </div>
             <button type="button" class="btn-secondary" id="imp-filtros-limpiar">Limpiar filtros</button>
           </div>
@@ -1551,7 +1559,7 @@
 
 <div class="modal-overlay" id="modal-fwd-embarque">
   <div class="modal">
-    <h3>Embarque — Elegir FWD</h3>
+    <h3>Salida del contenedor — Elegir FWD</h3>
     <div class="form-error" id="mfw-error"></div>
     <div class="field"><label>Proveedor FWD (forwarder)</label><select id="mfw-proveedor"><option value="">— Elegir —</option></select></div>
     <div class="form-row">
@@ -1561,7 +1569,7 @@
     <p style="font-size:0.78rem; color:var(--gray-mid); margin-top:-0.5rem;">Se suman al FOB para calcular el CIF, en Gastos de esta importación.</p>
     <div class="modal-close-row">
       <button type="button" class="btn-secondary" data-close-modal="modal-fwd-embarque">Cancelar</button>
-      <button type="button" class="btn-primary" id="mfw-confirmar">Confirmar y pasar a Embarcado</button>
+      <button type="button" class="btn-primary" id="mfw-confirmar">Confirmar y pasar a En tránsito</button>
     </div>
   </div>
 </div>
@@ -1853,13 +1861,13 @@
   const ETAPAS_IMPORTACION = [
     { key: 'en_produccion', label: 'En producción', icon: ic('factory', 12) },
     { key: 'produccion_terminada', label: 'Producción terminada', icon: ic('check-circle', 12) },
-    { key: 'embarcado', label: 'Embarcado', icon: ic('ship', 12) },
     { key: 'en_transito', label: 'En tránsito', icon: ic('waves', 12) },
     { key: 'puerto', label: 'Puerto', icon: ic('anchor', 12) },
     { key: 'deposito_fiscal', label: 'Depósito fiscal', icon: ic('warehouse', 12) },
     { key: 'finalizado', label: 'Finalizado', icon: ic('flag', 12) },
   ];
   const etapaLabel = Object.fromEntries(ETAPAS_IMPORTACION.map(e => [e.key, e.label]));
+  etapaLabel.embarcado = 'En tránsito';   // la etapa Embarcado ya no existe: lo que quedara así se trata como En tránsito
 
   const estadoLabel = { pendiente: 'Pendiente', parcial: 'Parcial', pagado: 'Pagado', cancelado: 'Cancelado' };
 
@@ -2595,7 +2603,7 @@
     const pct = comprado.fob ? Math.round((embarcado.fob / comprado.fob) * 100) : 0;
     const sinProd = lista.filter(i => !i.cubiertas).length;
     document.getElementById('dash-comprado-nota').textContent =
-      `Embarcado = ya salió de fábrica (etapa Embarcado en adelante). ${pct}% del FOB comprado ya está embarcado.` +
+      `Embarcado = ya salió de fábrica (etapa En tránsito en adelante). ${pct}% del FOB comprado ya está embarcado.` +
       (sinProd ? ` ${sinProd} pedido(s) sin compras/productos vinculados no suman cubiertas.` : '');
   }
 
@@ -3285,7 +3293,18 @@
         </div>`;
     }
 
-    cont.innerHTML = data.length ? data.map(sol => `
+    // Búsqueda libre: referencia, ref. proveedor, empresa, proveedor, línea, productos, importaciones y facturas asignadas
+    const qCompra = buscNorm(document.getElementById('sol-buscar').value);
+    const visibles = !qCompra ? data : data.filter(sol => {
+      const info = asigInfoPorSol[sol.id];
+      const campos = [sol.referencia, sol.referencia_proveedor, sol.empresas?.nombre, sol.proveedores?.nombre, sol.linea_producto, sol.condicion_pago, sol.incoterm, sol.notas];
+      (info?.lineas ?? []).forEach(l => {
+        campos.push(l.productos?.codigo, l.productos?.descripcion, l.productos?.medida);
+        (asigPorLinea[l.id] ?? []).forEach(a => { campos.push(importacionesTodasById[a.importacion_id]?.descripcion); String(a.factura ?? '').split(' / ').forEach(f => campos.push(f)); });
+      });
+      return campos.some(c => buscNorm(c).includes(qCompra));
+    });
+    cont.innerHTML = visibles.length ? visibles.map(sol => `
       <div class="import-card">
         <div class="import-card-head">
           <div>
@@ -3325,7 +3344,7 @@
         </div>
 
         ${renderAsignacionesCompra(sol)}
-      </div>`).join('') : `<div class="placeholder-view"><h2>Sin solicitudes</h2>Creá la primera con "+ Nueva solicitud".</div>`;
+      </div>`).join('') : (qCompra ? `<div class="placeholder-view"><h2>Sin resultados</h2>Ninguna compra coincide con la búsqueda.</div>` : `<div class="placeholder-view"><h2>Sin solicitudes</h2>Creá la primera con "+ Nueva solicitud".</div>`);
 
     cont.querySelectorAll('[data-editar-solicitud]').forEach(btn => {
       btn.addEventListener('click', () => openSolicitudModal(solicitudesById[btn.dataset.editarSolicitud]));
@@ -3400,8 +3419,10 @@
     document.getElementById('sol-filtro-empresa').value = '';
     document.getElementById('sol-filtro-proveedor').value = '';
     document.getElementById('sol-filtro-etapa').value = '';
+    document.getElementById('sol-buscar').value = '';
     loadComprasView();
   });
+  let solBuscarTm; document.getElementById('sol-buscar').addEventListener('input', () => { clearTimeout(solBuscarTm); solBuscarTm = setTimeout(loadComprasView, 350); });
 
   async function loadLineasSolicitud(solicitudId) {
     const listEl = document.getElementById('lineas-list-' + solicitudId);
@@ -4055,7 +4076,7 @@
       return;
     }
 
-    if (!retrocede && targetEtapa === 'embarcado' && imp.etapa !== 'embarcado') {
+    if (!retrocede && targetEtapa === 'en_transito' && ['en_produccion', 'produccion_terminada', 'embarcado'].includes(imp.etapa)) {
       pendingFiscalImportacionId = importacionId;
       document.getElementById('mfw-error').style.display = 'none';
       document.getElementById('mfw-flete').value = '';
@@ -4164,7 +4185,7 @@
     if (!proveedorId) { errEl.textContent = 'Elegí el proveedor FWD.'; errEl.style.display = 'block'; return; }
 
     const { error } = await supabaseClient.from('importaciones').update({
-      etapa: 'embarcado',
+      etapa: 'en_transito',
       fwd_proveedor_id: proveedorId,
     }).eq('id', pendingFiscalImportacionId);
     if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
@@ -4192,7 +4213,7 @@
     }
 
     closeModal('modal-fwd-embarque');
-    showToast('Importación embarcada');
+    showToast('Importación en tránsito');
     loadImportacionesView();
     loadDashboard();
   });
@@ -4277,6 +4298,16 @@
     if (importacionesVistaActual === 'finalizadas') return;
     const m = document.getElementById('modal-imp-detalle');
     if (!m.classList.contains('active') || impDetalleId !== id) await impAbrirDetalle(id);
+  }
+
+  // Búsqueda libre en importaciones: nombre/embarque, BL, marca, línea, empresa, proveedor, notas de plan, compras y facturas vinculadas
+  const buscNorm = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  function impCoincideBusqueda(imp, comprasPorImp) {
+    const q = buscNorm(document.getElementById('imp-buscar')?.value);
+    if (!q) return true;
+    const campos = [imp.descripcion, imp.tracking_referencia, imp.marca, imp.rubro, imp.empresas?.nombre, imp.proveedores?.nombre, imp.plan_notas];
+    (comprasPorImp?.[imp.id] ?? []).forEach(c => { campos.push(c.referencia, c.refProv, c.proveedores?.nombre); String(c.factura ?? '').split(' / ').forEach(f => campos.push(f)); });
+    return campos.some(c => buscNorm(c).includes(q));
   }
 
   async function initImportacionesFiltros() {
@@ -4561,7 +4592,7 @@
         i._etaNav = !i.fecha_eta && !!nav;
       });
       const porEtapa = {};
-      data.forEach(i => (porEtapa[i.etapa] ??= []).push(i));
+      data.filter(imp => impCoincideBusqueda(imp, comprasPorImp)).forEach(i => (porEtapa[i.etapa === 'embarcado' ? 'en_transito' : i.etapa] ??= []).push(i));
       const cmp = (campo, desc) => (x, y) => {
         const a = x[campo] ? String(x[campo]).slice(0, 10) : null, b = y[campo] ? String(y[campo]).slice(0, 10) : null;
         if (!a && !b) return String(x.descripcion).localeCompare(String(y.descripcion));
@@ -4747,8 +4778,10 @@
     document.getElementById('imp-filtro-empresa').value = '';
     document.getElementById('imp-filtro-proveedor').value = '';
     document.getElementById('imp-filtro-etapa').value = '';
+    document.getElementById('imp-buscar').value = '';
     loadImportacionesView();
   });
+  let impBuscarTm; document.getElementById('imp-buscar').addEventListener('input', () => { clearTimeout(impBuscarTm); impBuscarTm = setTimeout(loadImportacionesView, 350); });
 
 
   // ==================================================
@@ -7270,7 +7303,7 @@
     return `
       <div class="mae-head"><div><h2>${esc(prod.descripcion ?? prod.nombre ?? 'Producto')}</h2>
         <div class="sub">${[prod.codigo && 'Código ' + prod.codigo, prod.medida, prod.marca, prod.categoria, prod.gama].filter(Boolean).map(esc).join(' · ')}</div></div>${maeTag('Producto')}</div>
-      ${maeKpis([['Pedido en total', maeNum(pedido), `en ${lineas.length} línea(s) de compra`], ['Asignado a importaciones', maeNum(asignado)], ['Pendiente de asignar', maeNum(Math.max(pedido - asignado, 0))], ['Ya embarcado o más', maeNum(embarcado), 'etapa Embarcado en adelante'], ['FOB comprado', formatUSDCent(fob)]])}
+      ${maeKpis([['Pedido en total', maeNum(pedido), `en ${lineas.length} línea(s) de compra`], ['Asignado a importaciones', maeNum(asignado)], ['Pendiente de asignar', maeNum(Math.max(pedido - asignado, 0))], ['Ya embarcado o más', maeNum(embarcado), 'etapa En tránsito en adelante'], ['FOB comprado', formatUSDCent(fob)]])}
       ${maeTabla('En qué compras se pidió', ['Compra', 'Ref. proveedor', 'Proveedor', 'Fecha', 'Etapa', 'Pedido', 'Asignado', 'Pendiente', 'Precio'], filasCompras, 'Este producto todavía no está en ninguna compra.')}
       ${maeTabla('En qué importaciones viaja', ['Importación', 'Factura', 'Compra', 'Etapa', 'ETA', 'Cantidad', 'FOB'], filasImps, 'Todavía no se asignó a ninguna importación.')}`;
   }
@@ -7775,8 +7808,8 @@
       cuerpo: `
         <p>El corazón del sistema. Cada importación tiene una línea de tiempo (etapas) que se va marcando a medida que avanza:</p>
         <ul>
-          <li><strong>En producción → Producción terminada → Embarcado → En tránsito → Puerto → Depósito fiscal (opcional) → Finalizado.</strong></li>
-          <li>Al pasar a <strong>Embarcado</strong> hay que elegir el proveedor FWD (forwarder) y cargar Flete/Seguro en USD.</li>
+          <li><strong>En producción → Producción terminada → En tránsito → Puerto → Depósito fiscal (opcional) → Finalizado.</strong></li>
+          <li>Al pasar a <strong>En tránsito</strong> hay que elegir el proveedor FWD (forwarder) y cargar Flete/Seguro en USD.</li>
           <li>Al llegar a <strong>Puerto</strong> hay que indicar la Terminal Portuaria donde entra la carga.</li>
           <li>Cada importación puede tener <strong>varios contenedores</strong>, y cada uno se sigue por separado: canal aduanero (rojo/verde), fecha de retiro del puerto, si pasó o no por desconsolidación en depósito fiscal, días libres para devolverlo y fecha real de devolución. El sistema avisa cuántos días quedan (o si ya venció) para cada contenedor.</li>
           <li>Si un contenedor va a <strong>Depósito fiscal</strong> es porque todavía no hay fondos para nacionalizarlo; ahí se elige qué proveedor de depósito fiscal lo almacena.</li>
