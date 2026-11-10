@@ -706,6 +706,14 @@
   .plan-row .pn small { display: block; font-weight: 500; color: var(--gray-mid); font-size: 0.74rem; margin-top: 0.1rem; }
   .plan-row select, .plan-row input { padding: 0.45rem 0.6rem; border: 1px solid var(--gray-border); border-radius: 8px; font: inherit; font-size: 0.82rem; background: var(--white); color: var(--ink); min-height: 36px; width: 100%; min-width: 0; }
   .plan-tag { display: inline-block; font-size: 0.7rem; font-weight: 700; color: var(--orange); background: var(--orange-bg); border-radius: 6px; padding: 0.1rem 0.45rem; margin-left: 0.4rem; }
+  .aviso-amarillo { display:flex; gap:0.6rem; align-items:flex-start; background:#FFF6D6; border:1px solid #F2C94C; color:#7A5B00; border-radius:8px; padding:0.6rem 0.8rem; font-size:0.82rem; margin:0.25rem 0 0.75rem; line-height:1.35; }
+  .aviso-amarillo .av-ic { font-size:1rem; line-height:1.2; }
+  .aviso-amarillo.oculto { display:none; }
+  :root[data-theme="dark"] .aviso-amarillo { background:#3A3110; border-color:#8A6D12; color:#F5D77A; }
+  .kb-x-poliza { background:#FFF6D6; color:#7A5B00; }
+  :root[data-theme="dark"] .kb-x-poliza { background:#3A3110; color:#F5D77A; }
+  .dash-al.amarillo { background:#FFF6D6; color:#7A5B00; }
+  :root[data-theme="dark"] .dash-al.amarillo { background:#3A3110; color:#F5D77A; }
   .dash-al.naranja { background: var(--orange-bg); color: var(--orange); cursor: pointer; }
   @media (max-width: 900px) { .plan-row { grid-template-columns: 1fr auto; } .plan-row .pn { grid-column: 1 / -1; } }
 </style>
@@ -1567,6 +1575,8 @@
       <div class="field"><label>Seguro (USD)</label><input type="number" step="0.01" id="mfw-seguro" placeholder="0"></div>
     </div>
     <p style="font-size:0.78rem; color:var(--gray-mid); margin-top:-0.5rem;">Se suman al FOB para calcular el CIF, en Gastos de esta importación.</p>
+    <div class="field"><label>N° de póliza de seguro</label><input type="text" id="mfw-poliza" placeholder="Ej: 123456" autocomplete="off"></div>
+    <div class="aviso-amarillo" id="mfw-poliza-aviso"><span class="av-ic">⚠</span><div><strong>Sin póliza de seguro.</strong> La carga viaja sin cobertura registrada. Podés continuar y cargarla después desde Editar importación.</div></div>
     <div class="modal-close-row">
       <button type="button" class="btn-secondary" data-close-modal="modal-fwd-embarque">Cancelar</button>
       <button type="button" class="btn-primary" id="mfw-confirmar">Confirmar y pasar a En tránsito</button>
@@ -1725,6 +1735,7 @@
       <div class="form-row-3">
         <div class="field"><label>Fecha pedido</label><input type="date" id="mimp-fecha-pedido" required></div>
         <div class="field"><label>Fecha est. embarque</label><input type="date" id="mimp-fecha-emb-est"></div>
+        <div class="field"><label>N° de póliza de seguro</label><input type="text" id="mimp-poliza" autocomplete="off"></div>
         <div class="field"><label>ETA</label><input type="date" id="mimp-fecha-eta"></div>
       </div>
       <div class="modal-close-row">
@@ -2233,6 +2244,8 @@
       if (d >= 15) al.push({ pr: 4, cls: 'viol', t: i.descripcion, sub: 'Permanencia en depósito fiscal', g: d + ' d', ord: -d });
     });
     planPend.forEach(i => al.push({ pr: 2, cls: 'naranja', t: i.descripcion, sub: 'Requiere planificación: ' + (i.etapa === 'puerto' ? 'ya está en puerto' : 'arribo próximo'), g: 'planificar', ord: i._dias, id: i.id }));
+    activas.filter(i => ['en_transito', 'puerto', 'deposito_fiscal'].includes(i.etapa) && !String(i.poliza_numero || '').trim())
+      .forEach(i => al.push({ pr: 3, cls: 'amarillo', t: i.descripcion, sub: 'Sin póliza de seguro cargada', g: 'sin póliza', ord: 0 }));
     al.sort((a, b) => a.pr - b.pr || a.ord - b.ord);
     document.getElementById('count-dash-alertas').textContent = al.length;
     lista.innerHTML = al.length
@@ -4081,6 +4094,8 @@
       document.getElementById('mfw-error').style.display = 'none';
       document.getElementById('mfw-flete').value = '';
       document.getElementById('mfw-seguro').value = '';
+      document.getElementById('mfw-poliza').value = imp.poliza_numero ?? '';
+      mfwPolizaAviso();
       const proveedores = await ensureProveedoresCache();
       fillSelect(document.getElementById('mfw-proveedor'), proveedores.filter(p => p.tipo === 'fwd'), '— Elegir —');
       document.getElementById('mfw-proveedor').value = imp.fwd_proveedor_id ?? '';
@@ -4178,6 +4193,10 @@
     loadImportacionesView();
   }
 
+  function mfwPolizaAviso() {
+    document.getElementById('mfw-poliza-aviso').classList.toggle('oculto', !!document.getElementById('mfw-poliza').value.trim());
+  }
+  document.getElementById('mfw-poliza').addEventListener('input', mfwPolizaAviso);
   document.getElementById('mfw-confirmar').addEventListener('click', async () => {
     const errEl = document.getElementById('mfw-error');
     errEl.style.display = 'none';
@@ -4187,8 +4206,9 @@
     const { error } = await supabaseClient.from('importaciones').update({
       etapa: 'en_transito',
       fwd_proveedor_id: proveedorId,
+      poliza_numero: document.getElementById('mfw-poliza').value.trim() || null,
     }).eq('id', pendingFiscalImportacionId);
-    if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
+    if (error) { errEl.textContent = /poliza_numero/.test(error.message) ? 'Falta correr schema_poliza.sql en Supabase.' : error.message; errEl.style.display = 'block'; return; }
 
     const flete = Number(document.getElementById('mfw-flete').value) || 0;
     const seguro = Number(document.getElementById('mfw-seguro').value) || 0;
@@ -4560,6 +4580,10 @@
       }
       return '';
     }
+    function kbPoliza(imp) {
+      if (!['en_transito', 'puerto', 'deposito_fiscal'].includes(imp.etapa) || String(imp.poliza_numero || '').trim()) return '';
+      return `<div class="kb-extra kb-x-poliza">${ic('alert', 12)} Sin póliza de seguro</div>`;
+    }
     function kbPlan(imp) {
       if (imp.etapa === 'finalizado') return '';
       if (planFalta(imp, imp._eta)) return `<div class="kb-extra kb-x-plan">${ic('alert', 12)} Requiere planificación</div>`;
@@ -4580,6 +4604,7 @@
         <div class="kb-r2"><span><strong>${unidades ? maeNum(unidades) : '—'}</strong> U.</span><span class="kb-fob">FOB <strong>${fob ? formatUSDCent(fob) : '—'}</strong></span></div>
         <div class="kb-r3"><span>SBU <strong>${esc2(imp.rubro || '—')}</strong></span><span>Marca <strong>${esc2(imp.marca || '—')}</strong></span>${preEmb && imp.fecha_estimada_embarque ? `<span class="kb-etd">ETD ${formatFecha(imp.fecha_estimada_embarque)}</span>` : ''}</div>
         ${kbExtra(imp)}
+        ${kbPoliza(imp)}
         ${kbPlan(imp)}
         <div class="kb-r4"><span title="Factura de Odoo">${ic('receipt', 12)} ${facturas.length ? esc2(facturas[0]) + (facturas.length > 1 ? ` +${facturas.length - 1}` : '') : '<em>sin factura</em>'}</span><span title="BL / booking">BL ${imp.tracking_referencia ? `<strong>${esc2(imp.tracking_referencia)}</strong>` : '<em>—</em>'}</span></div>
       </div>`;
@@ -5040,6 +5065,7 @@
       document.getElementById('mimp-situacion-pago').value = imp.situacion_pago ?? '';
       document.getElementById('mimp-fecha-pedido').value = imp.fecha_pedido ?? todayStr();
       document.getElementById('mimp-fecha-emb-est').value = imp.fecha_estimada_embarque ?? '';
+      document.getElementById('mimp-poliza').value = imp.poliza_numero ?? '';
       document.getElementById('mimp-fecha-eta').value = imp.fecha_eta ?? '';
       document.getElementById('mimp-pais-destino').value = imp.pais_destino ?? 'AR';
       document.getElementById('mimp-tracking-ref').value = imp.tracking_referencia ?? '';
@@ -5086,6 +5112,7 @@
       situacion_pago: document.getElementById('mimp-situacion-pago').value.trim() || null,
       fecha_pedido: document.getElementById('mimp-fecha-pedido').value,
       fecha_estimada_embarque: document.getElementById('mimp-fecha-emb-est').value || null,
+      poliza_numero: document.getElementById('mimp-poliza').value.trim() || null,
       fecha_eta: document.getElementById('mimp-fecha-eta').value || null,
     };
     const { data: savedImp, error } = id
@@ -7599,10 +7626,18 @@
     fillSelect(document.getElementById('tr-vendedora'), empresas, null);
     fillSelect(document.getElementById('tr-compradora'), empresas, null);
 
-    const { data: importaciones } = await supabaseClient.from('importaciones').select('id, descripcion, monto_fob').order('fecha_pedido', { ascending: false }).limit(100);
+    const [{ data: importacionesTodas }, { data: yaTransf }] = await Promise.all([
+      supabaseClient.from('importaciones').select('id, descripcion, monto_fob').order('fecha_pedido', { ascending: false }).limit(500),
+      supabaseClient.from('transferencias_intercompania').select('importacion_id').neq('estado', 'cancelado').not('importacion_id', 'is', null),
+    ]);
+    // Solo importaciones que todavía no fueron transferidas (las transferencias canceladas la liberan)
+    const transferidas = new Set((yaTransf ?? []).map(t => t.importacion_id));
+    const importaciones = (importacionesTodas ?? []).filter(i => !transferidas.has(i.id));
     window.__trImps = {}; (importaciones ?? []).forEach(i => { window.__trImps[i.id] = i; });
     const sel = document.getElementById('tr-importacion');
+    const valorPrevio = sel.value;
     sel.innerHTML = '<option value="">— Ninguna —</option>' + (importaciones ?? []).map(i => `<option value="${i.id}">${esc(i.descripcion)}</option>`).join('');
+    if (valorPrevio && window.__trImps[valorPrevio]) sel.value = valorPrevio;
   }
 
   // Al elegir una importación, trae su FOB (el de Gastos si existe; si no, el de la importación)
