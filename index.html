@@ -6748,6 +6748,14 @@
         fetchTodo(() => supabaseClient.from('importaciones').select('id, descripcion, etapa, proveedor_id, empresa_compradora_id').order('id')),
       ]);
       odFac = { lista: [...facs.values()], sols, lineas, asigs, imps, prodPorCodigo: new Map(prods.filter(p => p.codigo).map(p => [String(p.codigo).trim(), p])) };
+      // Si la referencia de la factura coincide con UNA sola compra, se sugiere esa (se puede cambiar o volver a "Automático")
+      const kref = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      odFac.lista.forEach(f => {
+        const r = kref(f.ref); f.compraId = '';
+        if (r.length < 4) return;
+        const hit = sols.filter(so => [so.referencia_proveedor, so.referencia].some(v => { const a = kref(v); return a.length >= 4 && (a.includes(r) || r.includes(a)); }));
+        if (hit.length === 1) f.compraId = hit[0].id;
+      });
       odFacCalcular();
       odFacRender();
     } catch (e) {
@@ -6765,6 +6773,7 @@
     asigs.forEach(a => { asigPorLinea[a.solicitud_linea_id] = (asigPorLinea[a.solicitud_linea_id] ?? 0) + Number(a.cantidad || 0); });
     const pend = {};
     lineas.forEach(l => { pend[l.id] = Math.max(Number(l.cantidad || 0) - (asigPorLinea[l.id] ?? 0), 0); });
+    st.pendIni = { ...pend };
     const lineasPorProd = new Map();
     lineas.forEach(l => { (lineasPorProd.get(l.producto_id) ?? lineasPorProd.set(l.producto_id, []).get(l.producto_id)).push(l); });
     // cantidades de esta factura que ya estaban vinculadas (para poder reimportar sin duplicar)
@@ -6791,7 +6800,7 @@
           const k = f.factura + '|' + prod.id;
           const yaQty = Math.min(ya[k] ?? 0, resto);
           if (yaQty > 0) { ya[k] -= yaQty; resto -= yaQty; pl.yaVinculado = yaQty; f.cubAsig += yaQty; }
-          const cands = (lineasPorProd.get(prod.id) ?? []).filter(x => pend[x.id] > 0).sort((a, b) => {
+          const cands = (lineasPorProd.get(prod.id) ?? []).filter(x => pend[x.id] > 0 && (!f.compraId || x.solicitud_id === f.compraId)).sort((a, b) => {
             const sa = solById[a.solicitud_id] ?? {}, sb = solById[b.solicitud_id] ?? {};
             const rank = (x, s) => [
               l.oc && odNorm(s.referencia) === odNorm(l.oc) ? 0 : 1,
@@ -6835,6 +6844,16 @@
     const cont = document.getElementById('od-fac-preview');
     const { lista, imps } = odFac;
     const tot = lista.filter(f => f.incluida).reduce((a, f) => ({ fact: a.fact + f.cubFact, asig: a.asig + f.cubAsig, falta: a.falta + f.cubFalta }), { fact: 0, asig: 0, falta: 0 });
+    const opcionesCompra = (f) => {
+      const prodIds = new Set(f.planLineas.map(pl => pl.productoId).filter(Boolean));
+      const porSol = {};
+      (odFac.lineas ?? []).forEach(l => { if (prodIds.has(l.producto_id)) { const e = (porSol[l.solicitud_id] ??= { pend: 0 }); e.pend += odFac.pendIni?.[l.id] ?? 0; } });
+      const solById = Object.fromEntries((odFac.sols ?? []).map(so => [so.id, so]));
+      return `<option value="">Automática: repartir entre las compras con pendiente</option>` + Object.entries(porSol).map(([id, e]) => {
+        const so = solById[id]; if (!so) return '';
+        return `<option value="${id}" ${f.compraId === id ? 'selected' : ''}>${esc(so.referencia)} · ${esc(so.referencia_proveedor || 'sin ref. proveedor')} · ${maeNum(e.pend)} pendientes</option>`;
+      }).join('');
+    };
     const opcionesImp = (f) => `<option value="">➕ Crear importación nueva</option>` + imps.map(i => `<option value="${i.id}" ${f.dest === i.id ? 'selected' : ''}>${esc(i.descripcion)}</option>`).join('');
     const tarjetas = lista.map((f, i) => {
       const filas = f.planLineas.map(pl => {
@@ -6858,6 +6877,7 @@
         <div class="od-fac-dest">
           <div class="field"><label>Importación</label><select data-od-fac-dest="${i}">${opcionesImp(f)}</select></div>
           <div class="field" ${f.dest ? 'style="display:none"' : ''}><label>Nombre de la nueva importación</label><input type="text" data-od-fac-desc="${i}" value="${esc(f.desc)}"></div>
+          <div class="field"><label>Vincular a la compra</label><select data-od-fac-compra="${i}">${opcionesCompra(f)}</select></div>
         </div>
         ${f.avisos.map(a => odAviso(esc(a), 'warn')).join('')}
         <div class="table-scroll"><table>
@@ -7155,6 +7175,7 @@
       const t = e.target;
       if (t.dataset.odFacChk !== undefined) { odFac.lista[Number(t.dataset.odFacChk)].incluida = t.checked; odFacCalcular(); odFacRender(); }
       else if (t.dataset.odFacDest !== undefined) { const f = odFac.lista[Number(t.dataset.odFacDest)]; f.dest = t.value; f.destTocado = true; odFacCalcular(); odFacRender(); }
+      else if (t.dataset.odFacCompra !== undefined) { const f = odFac.lista[Number(t.dataset.odFacCompra)]; f.compraId = t.value; odFacCalcular(); odFacRender(); }
       else if (t.dataset.odFacDesc !== undefined) { odFac.lista[Number(t.dataset.odFacDesc)].desc = t.value; }
     });
   }
