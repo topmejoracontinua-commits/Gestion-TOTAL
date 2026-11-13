@@ -706,6 +706,19 @@
   .plan-row .pn small { display: block; font-weight: 500; color: var(--gray-mid); font-size: 0.74rem; margin-top: 0.1rem; }
   .plan-row select, .plan-row input { padding: 0.45rem 0.6rem; border: 1px solid var(--gray-border); border-radius: 8px; font: inherit; font-size: 0.82rem; background: var(--white); color: var(--ink); min-height: 36px; width: 100%; min-width: 0; }
   .plan-tag { display: inline-block; font-size: 0.7rem; font-weight: 700; color: var(--orange); background: var(--orange-bg); border-radius: 6px; padding: 0.1rem 0.45rem; margin-left: 0.4rem; }
+  .odoo-b { display:inline-block; padding:0.12rem 0.5rem; border-radius:999px; font-size:0.72rem; font-weight:600; white-space:nowrap; }
+  .odoo-b.paid { background:var(--green-bg); color:var(--green); }
+  .odoo-b.in_payment, .odoo-b.partial { background:var(--amber-bg); color:var(--amber); }
+  .odoo-b.not_paid { background:var(--red-bg); color:var(--red); }
+  .odoo-b.nd { background:var(--gray-light, #eee); color:var(--gray-mid); }
+  .cb-list { position:fixed; z-index:400; max-height:280px; overflow-y:auto; background:var(--white); border:1px solid var(--gray-border); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,.25); display:none; }
+  .cb-list.abierto { display:block; }
+  .cb-opt { padding:0.45rem 0.7rem; font-size:0.82rem; cursor:pointer; }
+  .cb-opt:hover, .cb-opt.sel { background:var(--gray-light); }
+  .cb-opt.vacio { color:var(--gray-mid); font-style:italic; }
+  :root[data-theme="dark"] .cb-list { background:#111C33; border-color:#26334F; }
+  :root[data-theme="dark"] .cb-opt:hover, :root[data-theme="dark"] .cb-opt.sel { background:#1B2A47; }
+  .odoo-sync-info { font-size:0.78rem; color:var(--gray-mid); }
   .aviso-amarillo { display:flex; gap:0.6rem; align-items:flex-start; background:#FFF6D6; border:1px solid #F2C94C; color:#7A5B00; border-radius:8px; padding:0.6rem 0.8rem; font-size:0.82rem; margin:0.25rem 0 0.75rem; line-height:1.35; }
   .aviso-amarillo .av-ic { font-size:1rem; line-height:1.2; }
   .aviso-amarillo.oculto { display:none; }
@@ -1190,6 +1203,12 @@
       <div class="view" id="view-transferencias">
         <div class="main-header"><div><h1>Transferencias</h1><p>Ventas intercompañía (ej: TOTAL PY → TOP / CABAÑAS)</p></div></div>
 
+        <div class="form-card" style="padding:0.9rem 1.1rem;">
+          <label for="tr-buscar" style="display:block; font-size:0.72rem; color:var(--gray-mid); margin-bottom:0.3rem;">Buscar transferencia o factura de Odoo (referencia, N° de factura, importación, empresa…)</label>
+          <input type="search" id="tr-buscar" class="search-input" style="width:100%;" placeholder="Ej: 26CFTON029TBR-2, 0000099, Cabañas…" autocomplete="off">
+          <div class="odoo-sync-info" id="tr-buscar-res" style="margin-top:0.35rem;"></div>
+        </div>
+
         <form class="form-card" id="tr-form">
           <h3>Nueva transferencia</h3>
           <div class="form-error" id="tr-error"></div>
@@ -1212,8 +1231,24 @@
           <div class="panel-wide-head"><h3>Transferencias</h3></div>
           <div class="table-scroll">
             <table>
-              <thead><tr><th>Fecha</th><th>Vendedora</th><th>Compradora</th><th>Monto</th><th>Importación</th><th>Estado</th><th>Acciones</th></tr></thead>
-              <tbody id="tabla-transferencias"><tr><td colspan="7" class="loading-text">Cargando…</td></tr></tbody>
+              <thead><tr><th>Fecha</th><th>Vendedora</th><th>Compradora</th><th>Monto</th><th>Importación</th><th>Estado</th><th>Factura y pago en Odoo</th><th>Acciones</th></tr></thead>
+              <tbody id="tabla-transferencias"><tr><td colspan="8" class="loading-text">Cargando…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel-wide" style="margin-top:1.25rem;">
+          <div class="panel-wide-head">
+            <h3>Facturas en Odoo</h3>
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+              <span class="odoo-sync-info" id="odoo-sync-info"></span>
+              <button type="button" class="btn-primary" id="odoo-sync-btn">Sincronizar con Odoo</button>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Factura</th><th>Referencia</th><th>Vence</th><th>Total</th><th>Pagado</th><th>Estado</th><th>Importación</th><th>Acción</th></tr></thead>
+              <tbody id="tabla-odoo-facturas"><tr><td colspan="8" class="loading-text">Cargando…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1245,8 +1280,8 @@
           <div class="panel-wide-head"><h3>Pagos</h3></div>
           <div class="table-scroll">
             <table>
-              <thead><tr><th>Fecha</th><th>Paga</th><th>Recibe</th><th>Monto</th><th>Referencia</th></tr></thead>
-              <tbody id="tabla-pagos"><tr><td colspan="5" class="loading-text">Cargando…</td></tr></tbody>
+              <thead><tr><th>Fecha</th><th>Paga</th><th>Recibe</th><th>Monto</th><th>Referencia</th><th>Acciones</th></tr></thead>
+              <tbody id="tabla-pagos"><tr><td colspan="6" class="loading-text">Cargando…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1590,6 +1625,7 @@
     <div class="form-error" id="mfr-error"></div>
     <p style="font-size:0.85rem; color:var(--gray-mid); margin-bottom:1rem;">Hace falta la fecha de retiro para poder marcar esta importación como finalizada.</p>
     <div class="field"><label>Fecha de retiro</label><input type="date" id="mfr-fecha"></div>
+    <div id="mfr-canales"></div>
     <div class="modal-close-row">
       <button type="button" class="btn-secondary" data-close-modal="modal-fiscal-retiro">Cancelar</button>
       <button type="button" class="btn-primary" id="mfr-confirmar">Confirmar retiro y finalizar</button>
@@ -4114,12 +4150,13 @@
       return;
     }
 
-    // Salir de "puerto" (hacia fiscal o hacia finalizado): todos los contenedores deben tener retiro+canal
+    // Salir de "puerto": todos los contenedores deben tener fecha de retiro. El canal NO se pide acá (todavía no se conoce);
+    // se asigna al retirar de Depósito fiscal / finalizar.
     if (!retrocede && imp.etapa === 'puerto' && targetEtapa !== 'puerto') {
-      const { data: contenedores } = await supabaseClient.from('importacion_contenedores').select('fecha_retiro_puerto, canal').eq('importacion_id', importacionId);
-      const incompleto = (contenedores ?? []).some(c => !c.fecha_retiro_puerto || !c.canal);
+      const { data: contenedores } = await supabaseClient.from('importacion_contenedores').select('fecha_retiro_puerto').eq('importacion_id', importacionId);
+      const incompleto = (contenedores ?? []).some(c => !c.fecha_retiro_puerto);
       if (incompleto) {
-        showToast('Completá fecha de retiro y canal de cada contenedor en "Seguimiento de contenedores" antes de salir de Puerto', 'error');
+        showToast('Completá la fecha de retiro de cada contenedor en "Seguimiento de contenedores" antes de salir de Puerto', 'error');
         await asegurarDetalleImp(importacionId);
         toggleContenedoresPanel(importacionId, true);
         return;
@@ -4131,6 +4168,13 @@
         pendingFiscalImportacionId = importacionId;
         document.getElementById('mfr-error').style.display = 'none';
         document.getElementById('mfr-fecha').value = todayStr();
+        // Canal de cada contenedor: se asigna acá si todavía no se cargó
+        const { data: ctnRet } = await supabaseClient.from('importacion_contenedores').select('id, numero, canal').eq('importacion_id', importacionId).order('numero');
+        const sinCanalRet = (ctnRet ?? []).filter(c => !c.canal);
+        document.getElementById('mfr-canales').innerHTML = sinCanalRet.length
+          ? `<p style="font-size:0.85rem; color:var(--gray-mid); margin:0.5rem 0;">Asigná el <strong>canal</strong> de cada contenedor (se conoce al retirar de fiscal):</p>` +
+            sinCanalRet.map(c => `<div class="field"><label>${esc(c.numero || 'Contenedor')} · Canal</label><select data-mfr-canal="${c.id}"><option value="">— Elegir —</option><option value="verde">Verde</option><option value="rojo">Rojo</option></select></div>`).join('')
+          : '';
         openModal('modal-fiscal-retiro');
         return;
       }
@@ -4285,6 +4329,12 @@
     const errEl = document.getElementById('mfr-error');
     const fecha = document.getElementById('mfr-fecha').value;
     if (!fecha) { errEl.textContent = 'Ingresá la fecha de retiro.'; errEl.style.display = 'block'; return; }
+    const selCanales = [...document.querySelectorAll('[data-mfr-canal]')];
+    if (selCanales.some(x => !x.value)) { errEl.textContent = 'Asigná el canal de cada contenedor.'; errEl.style.display = 'block'; return; }
+    for (const x of selCanales) {
+      const { error: eC } = await supabaseClient.from('importacion_contenedores').update({ canal: x.value }).eq('id', x.dataset.mfrCanal);
+      if (eC) { errEl.textContent = 'No se pudo guardar el canal: ' + eC.message; errEl.style.display = 'block'; return; }
+    }
 
     const { error } = await supabaseClient.from('importaciones').update({
       etapa: 'finalizado',
@@ -7665,25 +7715,28 @@
   async function loadTransferenciasView() {
     await initTransferenciasSelects();
     const tbody = document.getElementById('tabla-transferencias');
-    tbody.innerHTML = `<tr><td colspan="7" class="loading-text">Cargando…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="loading-text">Cargando…</td></tr>`;
+    const odooFacts = await cargarOdooFacturas();
 
     const { data, error } = await supabaseClient.from('transferencias_intercompania')
       .select('*, vendedora:empresas!transferencias_intercompania_empresa_vendedora_id_fkey(nombre), compradora:empresas!transferencias_intercompania_empresa_compradora_id_fkey(nombre), importaciones(descripcion)')
       .order('fecha', { ascending: false });
 
-    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="7">No se pudo cargar.</td></tr>`; return; }
+    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="8">No se pudo cargar.</td></tr>`; return; }
 
     tbody.innerHTML = data.length ? data.map(t => `
-      <tr>
+      <tr data-buscar="${esc([t.vendedora?.nombre, t.compradora?.nombre, t.importaciones?.descripcion, t.descripcion, t.monto, ...(odooFacts ?? []).filter(f => f.importacion_id && f.importacion_id === t.importacion_id).flatMap(f => [f.numero, f.referencia])].filter(Boolean).join(' '))}">
         <td>${formatFecha(t.fecha)}</td>
         <td>${esc(t.vendedora?.nombre ?? '—')}</td>
         <td>${esc(t.compradora?.nombre ?? '—')}</td>
         <td>${formatUSD(t.monto)}</td>
         <td>${esc(t.importaciones?.descripcion ?? '—')}</td>
         <td><span class="badge ${t.estado}">${estadoLabel[t.estado] ?? t.estado}</span></td>
+        <td>${odooCeldaTransf(odooFacts, t)}</td>
         <td>${t.estado !== 'pagado' && t.estado !== 'cancelado' ? `<button class="action-btn" data-cancelar-transferencia="${t.id}">Cancelar</button>` : '—'}</td>
-      </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Todavía no hay transferencias.</td></tr>`;
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="8">Todavía no hay transferencias.</td></tr>`;
 
+    trFiltrar();
     tbody.querySelectorAll('[data-cancelar-transferencia]').forEach(btn => {
       btn.addEventListener('click', async () => {
         if (!confirm('¿Marcar esta transferencia como cancelada?')) return;
@@ -7695,6 +7748,225 @@
       });
     });
   }
+
+  // ---- Buscador de Transferencias / Facturas de Odoo ----
+  function trFiltrar() {
+    const input = document.getElementById('tr-buscar');
+    if (!input) return;
+    const tokens = String(input.value ?? '').split(/\s+/).map(buscNorm).filter(Boolean);
+    let nT = 0, nF = 0;
+    const aplicar = (tbodyId) => {
+      let n = 0;
+      document.querySelectorAll(`#${tbodyId} tr[data-buscar]`).forEach(tr => {
+        const h = buscNorm(tr.dataset.buscar);
+        const ok = tokens.every(t => h.includes(t));
+        tr.style.display = ok ? '' : 'none';
+        if (ok) n++;
+      });
+      return n;
+    };
+    nT = aplicar('tabla-transferencias'); nF = aplicar('tabla-odoo-facturas');
+    document.getElementById('tr-buscar-res').textContent = tokens.length ? `${nT} transferencia${nT === 1 ? '' : 's'} · ${nF} factura${nF === 1 ? '' : 's'} de Odoo` : '';
+  }
+  document.getElementById('tr-buscar').addEventListener('input', trFiltrar);
+
+  // ---- Botón "Vincular y cargar pago" ----
+  function cbRefrescarBoton(el) {
+    const btn = document.querySelector(`[data-cb-btn="${el.dataset.cb}"]`); if (!btn) return;
+    const nuevo = el.dataset.cbImp || '', guardado = el.dataset.cbSaved || '';
+    const pagoCargado = !!window.__pagosOdoo?.[el.dataset.cb];
+    btn.disabled = nuevo === guardado && (!nuevo || pagoCargado);
+    btn.textContent = !nuevo ? (guardado ? 'Desvincular' : 'Vincular y cargar pago') : (pagoCargado && nuevo === guardado ? 'Pago cargado' : 'Vincular y cargar pago');
+  }
+  async function odooVincularYCargarPago(odooId, impId) {
+    const f = (window.__odooFacts ?? []).find(x => String(x.odoo_id) === String(odooId)); if (!f) return;
+    const { error: eV } = await supabaseClient.from('odoo_facturas').update({ importacion_id: impId || null, vinculo_manual: true }).eq('odoo_id', odooId);
+    if (eV) { showToast('No se pudo vincular la factura', 'error'); return; }
+    if (!impId) { showToast('Factura desvinculada'); loadTransferenciasView(); return; }
+
+    const monto = Number(f.total) - Number(f.pendiente);
+    if (!(monto > 0)) { showToast('Factura vinculada. Odoo todavía no informa pagos de esta factura.'); loadTransferenciasView(); return; }
+    const fechas = (f.pagos ?? []).map(p => p.fecha).filter(Boolean).sort();
+    const fecha = fechas.length ? fechas[fechas.length - 1] : (f.fecha ?? todayStr());
+
+    const { data: trs, error: eT } = await supabaseClient.from('transferencias_intercompania')
+      .select('id, estado, empresa_vendedora_id, empresa_compradora_id').eq('importacion_id', impId).neq('estado', 'cancelado');
+    if (eT) { showToast('No se pudo leer la transferencia', 'error'); return; }
+    if (!trs?.length) { showToast('Factura vinculada, pero esa importación no tiene transferencia. Creala primero.', 'error'); loadTransferenciasView(); return; }
+    const existente = window.__pagosOdoo?.[odooId];
+    const t = trs.length === 1 ? trs[0] : trs.filter(x => x.estado !== 'pagado')[0];
+    if (!existente && (!t || (trs.length > 1 && trs.filter(x => x.estado !== 'pagado').length !== 1))) {
+      showToast('Hay más de una transferencia para esa importación: cargá el pago a mano en Pagos.', 'error'); loadTransferenciasView(); return;
+    }
+    let eP;
+    if (existente) {
+      ({ error: eP } = await supabaseClient.from('pagos_intercompania').update({ monto, fecha }).eq('id', existente.id));
+    } else {
+      if (t.estado === 'pagado') { showToast('Factura vinculada. La transferencia ya figura pagada.'); loadTransferenciasView(); return; }
+      ({ error: eP } = await supabaseClient.from('pagos_intercompania').insert([{
+        transferencia_id: t.id, empresa_paga_id: t.empresa_compradora_id, empresa_recibe_id: t.empresa_vendedora_id,
+        monto, fecha, referencia: 'Odoo · ' + (f.numero ?? ''), odoo_factura_id: f.odoo_id,
+      }]));
+    }
+    if (eP) { showToast(/odoo_factura_id/.test(eP.message) ? 'Falta correr schema_odoo_pagos.sql en Supabase.' : 'No se pudo cargar el pago: ' + eP.message, 'error'); return; }
+    showToast(`Factura vinculada y pago de ${formatUSD(monto)} cargado`);
+    loadTransferenciasView();
+    if (typeof loadDashboard === 'function') loadDashboard();
+  }
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest?.('[data-cb-btn]'); if (!b || b.disabled) return;
+    const inp = document.querySelector(`[data-cb="${b.dataset.cbBtn}"]`);
+    b.disabled = true;
+    await odooVincularYCargarPago(b.dataset.cbBtn, inp?.dataset.cbImp || '');
+  });
+
+  // ---- Buscador de embarque para vincular cada factura (lista filtrable) ----
+  (function cbInit() {
+    const lista = document.createElement('div');
+    lista.className = 'cb-list';
+    document.body.appendChild(lista);
+    let activo = null;
+    const cerrar = () => { lista.classList.remove('abierto'); activo = null; };
+    const pintar = () => {
+      if (!activo) return;
+      const tokens = activo.value.split(/\s+/).map(buscNorm).filter(Boolean);
+      const imps = (window.__cbImps ?? []).filter(i => { const h = buscNorm(i.descripcion); return tokens.every(t => h.includes(t)); }).slice(0, 60);
+      lista.innerHTML = `<div class="cb-opt vacio" data-cb-val="">— Sin vincular —</div>` +
+        (imps.length ? imps.map(i => `<div class="cb-opt" data-cb-val="${i.id}">${esc(i.descripcion)}</div>`).join('') : '<div class="cb-opt vacio" style="cursor:default;">Sin resultados</div>');
+      const r = activo.getBoundingClientRect();
+      lista.style.left = r.left + 'px'; lista.style.top = (r.bottom + 2) + 'px'; lista.style.width = Math.max(r.width, 320) + 'px';
+      lista.classList.add('abierto');
+    };
+    document.addEventListener('focusin', (e) => {
+      const el = e.target.closest?.('[data-cb]'); if (!el) return;
+      activo = el; el.select(); pintar();
+    });
+    document.addEventListener('input', (e) => { const el = e.target.closest?.('[data-cb]'); if (el) { activo = el; pintar(); } });
+    lista.addEventListener('mousedown', async (e) => {
+      const o = e.target.closest('[data-cb-val]'); if (!o || !activo) return;
+      e.preventDefault();
+      const el = activo; cerrar();
+      el.dataset.cbImp = o.dataset.cbVal;
+      el.value = (window.__cbImps ?? []).find(i => i.id === o.dataset.cbVal)?.descripcion ?? '';
+      cbRefrescarBoton(el);
+    });
+    document.addEventListener('focusout', (e) => {
+      const el = e.target.closest?.('[data-cb]'); if (!el) return;
+      setTimeout(() => { if (activo === el) { cerrar(); el.value = (window.__cbImps ?? []).find(i => i.id === el.dataset.cbImp)?.descripcion ?? ''; } }, 120);
+    });
+    window.addEventListener('scroll', () => { if (activo) pintar(); }, true);
+    window.addEventListener('resize', cerrar);
+  })();
+
+  // ---- Facturas de Odoo (estado de pago) ----
+  const ODOO_ESTADO = { paid: 'Pagada', in_payment: 'En proceso de pago', partial: 'Pago parcial', not_paid: 'Sin pagar', reversed: 'Revertida' };
+  const odooBadge = (e) => `<span class="odoo-b ${ODOO_ESTADO[e] ? e : 'nd'}">${ODOO_ESTADO[e] ?? '—'}</span>`;
+  async function cargarOdooFacturas() {
+    const [{ data, error }, { data: fLin }, { data: asg }] = await Promise.all([
+      supabaseClient.from('odoo_facturas').select('*').order('fecha', { ascending: false }),
+      supabaseClient.from('facturas_odoo_lineas').select('factura, importacion_id').not('importacion_id', 'is', null),
+      supabaseClient.from('compra_linea_asignaciones').select('importacion_id, factura').not('factura', 'is', null),
+    ]);
+    window.__odooFacts = error ? [] : (data ?? []);
+    window.__odooErr = error ? error.message : null;
+    try {
+      const { data: pg, error: ePg0 } = await supabaseClient.from('pagos_intercompania').select('id, odoo_factura_id, monto').not('odoo_factura_id', 'is', null);
+      window.__pagosOdoo = {}; if (!ePg0) (pg ?? []).forEach(x => { window.__pagosOdoo[x.odoo_factura_id] = x; });
+    } catch (_) { window.__pagosOdoo = {}; }
+    // Facturas que el portal ya tiene asignadas a cada importación (por N° de factura)
+    const nf = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const impPorFac = {}, facPorImp = {};
+    const reg = (num, imp) => {
+      const k = nf(num); if (!k || !imp) return;
+      (impPorFac[k] ??= new Set()).add(imp);
+      (facPorImp[imp] ??= new Map()).set(k, String(num).trim());
+    };
+    (fLin ?? []).forEach(r => reg(r.factura, r.importacion_id));
+    (asg ?? []).forEach(r => String(r.factura).split(' / ').forEach(x => reg(x, r.importacion_id)));
+    window.__facPorImp = facPorImp;
+    // Vincula solas las facturas de Odoo cuyo N° ya está en una importación (sin pisar vínculos manuales)
+    for (const f of window.__odooFacts) {
+      if (f.importacion_id || f.vinculo_manual) continue;
+      const set = impPorFac[nf(f.numero)];
+      if (set && set.size === 1) {
+        const impId = [...set][0];
+        const { error: eU } = await supabaseClient.from('odoo_facturas').update({ importacion_id: impId }).eq('odoo_id', f.odoo_id);
+        if (!eU) f.importacion_id = impId;
+      }
+    }
+    // Los pagos de Odoo ya NO se cargan solos: se cargan con el botón "Vincular y cargar pago".
+    renderOdooFacturas();
+    return window.__odooFacts;
+  }
+  // Celda de cada transferencia: facturas vinculadas (con su pago) + selector para vincular otra
+  const odooTokens = (v) => String(v ?? '').toLowerCase().split(/[^a-z0-9]+/).filter(x => x.length > 1);
+  function odooCeldaTransf(facts, t) {
+    if (!t.importacion_id) return '<span class="odoo-b nd">Sin importación</span>';
+    const todas = facts ?? [];
+    const vinc = todas.filter(f => f.importacion_id === t.importacion_id);
+    let html = vinc.map(f => {
+      const pagado = Number(f.total) - Number(f.pendiente);
+      return `<div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.25rem;">
+        <strong>${esc(f.numero ?? '—')}</strong> ${odooBadge(f.estado_pago)}
+        <span class="odoo-sync-info">pagado ${formatUSD(pagado)} de ${formatUSD(f.total)}</span>
+      </div>`;
+    }).join('');
+    const nf2 = (v) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const enOdoo = new Set(vinc.map(f => nf2(f.numero)));
+    const faltan = [...(window.__facPorImp?.[t.importacion_id]?.entries() ?? [])].filter(([k]) => !enOdoo.has(k)).map(([, n]) => n);
+    if (faltan.length) html += `<div class="odoo-sync-info" style="margin-bottom:0.25rem;">Factura de la importación: <strong>${esc(faltan.join(', '))}</strong> · no está en Odoo (vinculala en “Facturas en Odoo”)</div>`;
+    if (!vinc.length && !faltan.length) html = '<div class="odoo-sync-info" style="margin-bottom:0.25rem;">Sin factura vinculada</div>';
+    return html;
+  }
+  async function odooSetVinculo(odooId, impId) {
+    const { error } = await supabaseClient.from('odoo_facturas').update({ importacion_id: impId || null, vinculo_manual: true }).eq('odoo_id', odooId);
+    if (error) { showToast('No se pudo vincular', 'error'); return false; }
+    showToast(impId ? 'Factura vinculada' : 'Factura desvinculada');
+    loadTransferenciasView();
+    return true;
+  }
+  async function renderOdooFacturas() {
+    const tb = document.getElementById('tabla-odoo-facturas');
+    const info = document.getElementById('odoo-sync-info');
+    if (!tb) return;
+    if (window.__odooErr) { tb.innerHTML = `<tr class="empty-row"><td colspan="8">${/odoo_facturas/.test(window.__odooErr) ? 'Falta correr schema_odoo_facturas.sql en Supabase.' : esc(window.__odooErr)}</td></tr>`; return; }
+    const lista = window.__odooFacts ?? [];
+    const ult = lista.map(f => f.sincronizado_en).filter(Boolean).sort().pop();
+    info.textContent = ult ? 'Última sincronización: ' + new Date(ult).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : 'Sin sincronizar todavía';
+    if (!lista.length) { tb.innerHTML = '<tr class="empty-row"><td colspan="8">Todavía no hay facturas. Tocá “Sincronizar con Odoo”.</td></tr>'; return; }
+    const { data: imps } = await supabaseClient.from('importaciones').select('id, descripcion').order('fecha_pedido', { ascending: false }).limit(500);
+    window.__cbImps = imps ?? [];
+    tb.innerHTML = lista.map(f => {
+      const pagado = Number(f.total) - Number(f.pendiente);
+      const tit = (f.pagos ?? []).map(p => `${p.fecha ?? ''} · ${formatUSD(p.monto)}${p.ref ? ' · ' + p.ref : ''}`).join('\n');
+      const impVinc = (imps ?? []).find(i => i.id === f.importacion_id)?.descripcion ?? '';
+      return `<tr data-buscar="${esc([f.numero, f.referencia, impVinc, f.proveedor].filter(Boolean).join(' '))}">
+        <td><strong>${esc(f.numero ?? '—')}</strong></td>
+        <td>${esc(f.referencia ?? '—')}</td>
+        <td>${f.vencimiento ? formatFecha(f.vencimiento) : '—'}</td>
+        <td>${formatUSD(f.total)}</td>
+        <td title="${esc(tit)}">${formatUSD(pagado)}</td>
+        <td>${odooBadge(f.estado_pago)}</td>
+        <td><input type="text" class="search-input" data-cb="${f.odoo_id}" data-cb-imp="${f.importacion_id ?? ''}" data-cb-saved="${f.importacion_id ?? ''}" value="${esc(impVinc)}" placeholder="Buscar embarque…" autocomplete="off" style="min-width:240px; width:100%;"></td>
+        <td style="white-space:nowrap;">
+          <button type="button" class="btn-primary" data-cb-btn="${f.odoo_id}" disabled style="padding:0.35rem 0.7rem; font-size:0.78rem;">Vincular y cargar pago</button>
+          ${window.__pagosOdoo?.[f.odoo_id] ? `<div class="odoo-sync-info" style="margin-top:0.25rem;">✓ Pago cargado (${formatUSD(window.__pagosOdoo[f.odoo_id].monto)})</div>` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+    tb.querySelectorAll('[data-cb]').forEach(cbRefrescarBoton);
+    trFiltrar();
+  }
+  document.getElementById('odoo-sync-btn').addEventListener('click', async (e) => {
+    const b = e.currentTarget; b.disabled = true; const t0 = b.textContent; b.textContent = 'Sincronizando…';
+    try {
+      const r = await invocarFuncion('odoo-sync', {});
+      if (r.ok !== true || typeof r.facturas !== 'number') throw new Error('Respuesta inesperada de la función: ' + JSON.stringify(r).slice(0, 200));
+      showToast(`Odoo: ${r.facturas} facturas, ${r.vinculadas_nuevas} vinculadas nuevas`);
+      loadTransferenciasView();
+    } catch (err) { showToast(err.message || 'No se pudo sincronizar', 'error'); }
+    b.disabled = false; b.textContent = t0;
+  });
 
   document.getElementById('tr-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -7748,13 +8020,13 @@
   async function loadPagosView() {
     await initPagosSelects();
     const tbody = document.getElementById('tabla-pagos');
-    tbody.innerHTML = `<tr><td colspan="5" class="loading-text">Cargando…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="loading-text">Cargando…</td></tr>`;
 
     const { data, error } = await supabaseClient.from('pagos_intercompania')
       .select('*, paga:empresas!pagos_intercompania_empresa_paga_id_fkey(nombre), recibe:empresas!pagos_intercompania_empresa_recibe_id_fkey(nombre)')
       .order('fecha', { ascending: false });
 
-    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="5">No se pudo cargar.</td></tr>`; return; }
+    if (error || !data) { tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No se pudo cargar.</td></tr>`; return; }
 
     tbody.innerHTML = data.length ? data.map(p => `
       <tr>
@@ -7762,8 +8034,18 @@
         <td>${esc(p.paga?.nombre ?? '—')}</td>
         <td>${esc(p.recibe?.nombre ?? '—')}</td>
         <td>${formatUSD(p.monto)}</td>
-        <td>${p.referencia ?? '—'}</td>
-      </tr>`).join('') : `<tr class="empty-row"><td colspan="5">Todavía no hay pagos.</td></tr>`;
+        <td>${esc(p.referencia ?? '—')}</td>
+        <td><button class="action-btn" data-eliminar-pago="${p.id}" data-pago-desc="${esc((p.referencia ?? '') + ' · ' + formatUSD(p.monto))}">Eliminar</button></td>
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="6">Todavía no hay pagos.</td></tr>`;
+
+    tbody.querySelectorAll('[data-eliminar-pago]').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm(`¿Eliminar este pago?\n${btn.dataset.pagoDesc}\n\nLa transferencia vuelve a recalcular su estado.`)) return;
+      const { error: eDel } = await supabaseClient.from('pagos_intercompania').delete().eq('id', btn.dataset.eliminarPago);
+      if (eDel) { showToast('No se pudo eliminar el pago', 'error'); return; }
+      showToast('Pago eliminado');
+      loadPagosView();
+      if (typeof loadDashboard === 'function') loadDashboard();
+    }));
   }
 
   document.getElementById('pg-form').addEventListener('submit', async (e) => {
@@ -7869,7 +8151,7 @@
           <li>Al llegar a <strong>Puerto</strong> hay que indicar la Terminal Portuaria donde entra la carga.</li>
           <li>Cada importación puede tener <strong>varios contenedores</strong>, y cada uno se sigue por separado: canal aduanero (rojo/verde), fecha de retiro del puerto, si pasó o no por desconsolidación en depósito fiscal, días libres para devolverlo y fecha real de devolución. El sistema avisa cuántos días quedan (o si ya venció) para cada contenedor.</li>
           <li>Si un contenedor va a <strong>Depósito fiscal</strong> es porque todavía no hay fondos para nacionalizarlo; ahí se elige qué proveedor de depósito fiscal lo almacena.</li>
-          <li>Para poder marcar una importación como <strong>Finalizado</strong>, el sistema exige: que todos los contenedores tengan canal y fecha de retiro cargados, y que estén los comprobantes de FOB, Flete, Seguro y de cada gasto de destino con monto mayor a cero.</li>
+          <li>Para poder marcar una importación como <strong>Finalizado</strong>, el sistema exige: que todos los contenedores tengan canal (se asigna al retirar de Depósito fiscal), fecha de retiro y devolución cargados, y que estén los comprobantes de FOB, Flete, Seguro y de cada gasto de destino con monto mayor a cero.</li>
           <li>Las importaciones finalizadas se pintan de verde y pasan a la solapa <strong>"Finalizadas"</strong>, separadas de las <strong>"Activas"</strong>, para no saturar la vista con el tiempo.</li>
           <li>Cada tarjeta muestra un indicador rápido de <strong>% sobre FOB</strong> (cuánto encarece la importación respecto al valor FOB original).</li>
         </ul>`
