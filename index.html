@@ -7778,6 +7778,16 @@
     btn.disabled = nuevo === guardado && (!nuevo || pagoCargado);
     btn.textContent = !nuevo ? (guardado ? 'Desvincular' : 'Vincular y cargar pago') : (pagoCargado && nuevo === guardado ? 'Pago cargado' : 'Vincular y cargar pago');
   }
+  // Referencia que se guarda en el pago del portal: Odoo · factura · OP · memo · banco
+  function odooRefPago(f) {
+    const ops = (f.pagos ?? []).map(p => [p.nro_op ? 'OP ' + String(p.nro_op).replace(/^OP\s*/i, '') : null, p.memo_op, p.banco || p.diario].filter(Boolean).join(' · ')).filter(Boolean);
+    return ['Odoo', f.numero ?? '', ...ops].filter(Boolean).join(' · ').slice(0, 300);
+  }
+  // Texto legible de un pago de Odoo: OP · memo · fecha · banco
+  function odooPagoTxt(p) {
+    const partes = [p.nro_op ? 'OP ' + String(p.nro_op).replace(/^OP\s*/i, '') : null, p.memo_op, (p.fecha_op || p.fecha) ? formatFecha(p.fecha_op || p.fecha) : null, p.banco || p.diario, formatUSD(p.monto)];
+    return partes.filter(Boolean).join(' · ');
+  }
   async function odooVincularYCargarPago(odooId, impId) {
     const f = (window.__odooFacts ?? []).find(x => String(x.odoo_id) === String(odooId)); if (!f) return;
     const { error: eV } = await supabaseClient.from('odoo_facturas').update({ importacion_id: impId || null, vinculo_manual: true }).eq('odoo_id', odooId);
@@ -7800,12 +7810,12 @@
     }
     let eP;
     if (existente) {
-      ({ error: eP } = await supabaseClient.from('pagos_intercompania').update({ monto, fecha }).eq('id', existente.id));
+      ({ error: eP } = await supabaseClient.from('pagos_intercompania').update({ monto, fecha, referencia: odooRefPago(f) }).eq('id', existente.id));
     } else {
       if (t.estado === 'pagado') { showToast('Factura vinculada. La transferencia ya figura pagada.'); loadTransferenciasView(); return; }
       ({ error: eP } = await supabaseClient.from('pagos_intercompania').insert([{
         transferencia_id: t.id, empresa_paga_id: t.empresa_compradora_id, empresa_recibe_id: t.empresa_vendedora_id,
-        monto, fecha, referencia: 'Odoo · ' + (f.numero ?? ''), odoo_factura_id: f.odoo_id,
+        monto, fecha, referencia: odooRefPago(f), odoo_factura_id: f.odoo_id,
       }]));
     }
     if (eP) { showToast(/odoo_factura_id/.test(eP.message) ? 'Falta correr schema_odoo_pagos.sql en Supabase.' : 'No se pudo cargar el pago: ' + eP.message, 'error'); return; }
@@ -7938,14 +7948,14 @@
     window.__cbImps = imps ?? [];
     tb.innerHTML = lista.map(f => {
       const pagado = Number(f.total) - Number(f.pendiente);
-      const tit = (f.pagos ?? []).map(p => `${p.fecha ?? ''} · ${formatUSD(p.monto)}${p.ref ? ' · ' + p.ref : ''}`).join('\n');
+      const tit = (f.pagos ?? []).map(p => odooPagoTxt(p)).join('\n');
       const impVinc = (imps ?? []).find(i => i.id === f.importacion_id)?.descripcion ?? '';
       return `<tr data-buscar="${esc([f.numero, f.referencia, impVinc, f.proveedor].filter(Boolean).join(' '))}">
         <td><strong>${esc(f.numero ?? '—')}</strong></td>
         <td>${esc(f.referencia ?? '—')}</td>
         <td>${f.vencimiento ? formatFecha(f.vencimiento) : '—'}</td>
         <td>${formatUSD(f.total)}</td>
-        <td title="${esc(tit)}">${formatUSD(pagado)}</td>
+        <td title="${esc(tit)}">${formatUSD(pagado)}${(f.pagos ?? []).filter(p => p.nro_op || p.banco).map(p => `<div style="font-size:0.72rem;color:var(--gray-mid);white-space:nowrap;">${esc(odooPagoTxt(p))}</div>`).join('')}</td>
         <td>${odooBadge(f.estado_pago)}</td>
         <td><input type="text" class="search-input" data-cb="${f.odoo_id}" data-cb-imp="${f.importacion_id ?? ''}" data-cb-saved="${f.importacion_id ?? ''}" value="${esc(impVinc)}" placeholder="Buscar embarque…" autocomplete="off" style="min-width:240px; width:100%;"></td>
         <td style="white-space:nowrap;">
@@ -7963,6 +7973,7 @@
       const r = await invocarFuncion('odoo-sync', {});
       if (r.ok !== true || typeof r.facturas !== 'number') throw new Error('Respuesta inesperada de la función: ' + JSON.stringify(r).slice(0, 200));
       showToast(`Odoo: ${r.facturas} facturas, ${r.vinculadas_nuevas} vinculadas nuevas`);
+      if (r.aviso) console.warn('Odoo (detalle de pagos):', r.aviso);
       loadTransferenciasView();
     } catch (err) { showToast(err.message || 'No se pudo sincronizar', 'error'); }
     b.disabled = false; b.textContent = t0;
